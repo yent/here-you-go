@@ -6,7 +6,7 @@
  *
  */
 
-namespace HereYouGo\JSON\Exception;
+namespace HereYouGo\Converter\JSON\Exception;
 
 use HereYouGo\Exception\Detailed;
 

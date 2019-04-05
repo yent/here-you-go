@@ -10,6 +10,13 @@ namespace HereYouGo;
 
 
 class Sanitizer {
+    /**
+     * Sanitize user data
+     *
+     * @param mixed $input
+     *
+     * @return mixed
+     */
     public static function sanitizeInput($input) {
         if(is_array($input)) {
             foreach($input as $k => $v) {
@@ -39,4 +46,40 @@ class Sanitizer {
 
         return null;
     }
+    
+    /**
+     * Sanitize data with exceptions
+     *
+     * @param mixed $data
+     * @param array $doNotSanitize
+     * @param string $path
+     *
+     * @return array|mixed
+     */
+    public static function sanitizeData($data, array $doNotSanitize = [], $path = '') {
+        if(is_object($data)) {
+            foreach (get_object_vars($data) as $k => $v) {
+                $v = self::sanitizeData($v, $doNotSanitize, $path ? $path.'/'.$k : $k);
+                $data->$k = $v;
+            }
+            return $data;
+            
+        } else if (is_array($data)) {
+            return array_map(function($d, $k) use($doNotSanitize, $path) {
+                return self::sanitizeData($d, $doNotSanitize, $path ? $path.'/'.$k : $k);
+            }, $data, array_keys($data));
+            
+        } else {
+            $sanitize = true;
+            foreach($doNotSanitize as $regexp)
+                if(preg_match($regexp, $path))
+                    $sanitize = false;
+            
+            if($sanitize)
+                $data = self::sanitizeInput($data);
+            
+            return $data;
+        }
+    }
+    
 }

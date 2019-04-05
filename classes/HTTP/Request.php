@@ -9,36 +9,28 @@
 namespace HereYouGo\HTTP;
 
 use HereYouGo\Sanitizer;
-use HereYouGo\JSON;
+
+use HereYouGo\Converter\XML;
+use HereYouGo\Converter\JSON;
 
 class Request {
-    /** @var self */
-    private static $analysed = null;
+    /** @var bool */
+    protected static $parsed = false;
 
     /** @var string */
-    private $method = '';
+    protected static $method = '';
 
     /** @var string */
-    private $path = '';
+    protected static $path = '';
 
     /** @var string */
-    private $content_type = '';
+    protected static $content_type = '';
 
     /** @var array */
-    private $content_type_params = [];
+    protected static $content_type_params = [];
 
     /** @var mixed */
-    private $body = null;
-
-    /**
-     * Analyse the request
-     */
-    private static function get() {
-        if(!self::$analysed)
-            self::$analysed = new self();
-
-        return self::$analysed;
-    }
+    protected static $body = null;
 
     /**
      * Get requested method (lowercase)
@@ -46,7 +38,7 @@ class Request {
      * @return string
      */
     public static function getMethod() {
-        return self::get()->method;
+        return self::$method;
     }
 
     /**
@@ -55,7 +47,7 @@ class Request {
      * @return string
      */
     public static function getPath() {
-        return self::get()->path;
+        return self::$path;
     }
 
     /**
@@ -64,7 +56,7 @@ class Request {
      * @return string
      */
     public static function getContentType() {
-        return self::get()->content_type;
+        return self::$content_type;
     }
 
     /**
@@ -73,7 +65,7 @@ class Request {
      * @return array
      */
     public static function getContentTypeParams() {
-        return self::get()->content_type_params;
+        return self::$content_type_params;
     }
 
     /**
@@ -84,21 +76,54 @@ class Request {
      * @throws JSON\Exception\UnableToDecode
      */
     public static function getBody() {
-        return self::get()->body();
+        if(is_null(self::$body)) {
+            self::parse();
+            
+            $input = file_get_contents('php://input');
+        
+            switch(self::$content_type) {
+                case 'text/plain':
+                    self::$body = trim(Sanitizer::sanitizeInput($input));
+                    break;
+            
+                case 'application/octet-stream':
+                    // Don't sanitize binary input, don't prefetch either
+                    self::$body = $input;
+                    break;
+            
+                case 'application/x-www-form-urlencoded':
+                    $data = array();
+                    parse_str($input, $data);
+                    self::$body = (object)Sanitizer::sanitizeInput($data);
+                    break;
+            
+                case 'text/xml':
+                    self::$body = XML::parse($input); // Do not sanitize because it breaks xml
+                    break;
+            
+                case 'application/json':
+                default:
+                self::$body = JSON::decode(Sanitizer::sanitizeInput($input), true);
+            }
+        }
+    
+        return self::$body;
     }
 
     /**
      * Request constructor.
      */
-    private function __construct() {
-        $this->method = '';
+    public static function parse() {
+        if(self::$parsed) return;
+        
+        self::$method = '';
         foreach (array('REQUEST_METHOD', 'X_HTTP_METHOD_OVERRIDE') as $k) {
             if (!array_key_exists($k, $_SERVER)) continue;
-            $this->method = strtolower($_SERVER[$k]);
+            self::$method = strtolower($_SERVER[$k]);
         }
 
         if(array_key_exists('PATH_INFO', $_SERVER))
-            $this->path = trim(preg_replace('`/\s*/`', '', $_SERVER['PATH_INFO']));
+            self::$path = trim(preg_replace('`/\s*/`', '', $_SERVER['PATH_INFO']));
 
         $type = 'application/binary';
         foreach (array('HTTP_CONTENT_TYPE', 'CONTENT_TYPE') as $k) {
@@ -107,48 +132,12 @@ class Request {
         }
 
         $type = array_map('trim', explode(';', $type));
-        $this->content_type = array_shift($type);
+        self::$content_type = array_shift($type);
 
         foreach ($type as $part) {
             $part = array_map('trim', explode('=', $part));
             if (count($part) < 2) continue;
-            $this->content_type_params[$part[0]] = $part[1];
+            self::$content_type_params[$part[0]] = $part[1];
         }
-    }
-
-    /**
-     * Body getter
-     *
-     * @return mixed
-     *
-     * @throws JSON\Exception\UnableToDecode
-     */
-    private function body() {
-        if(is_null($this->body)) {
-            $input = file_get_contents('php://input');
-
-            switch($this->content_type) {
-                case 'text/plain':
-                    $this->body = trim(Sanitizer::sanitizeInput($input));
-                    break;
-
-                case 'application/octet-stream':
-                    // Don't sanitize binary input
-                    $this->body = $input;
-                    break;
-
-                case 'application/x-www-form-urlencoded':
-                    $data = array();
-                    parse_str($input, $data);
-                    $this->body = (object)Sanitizer::sanitizeInput($data);
-                    break;
-
-                case 'application/json':
-                default:
-                $this->body = JSON::decode(Sanitizer::sanitizeInput($input), true);
-            }
-        }
-
-        return $this->body;
     }
 }

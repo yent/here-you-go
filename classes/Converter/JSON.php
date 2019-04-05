@@ -6,11 +6,11 @@
  *
  */
 
-namespace HereYouGo;
+namespace HereYouGo\Converter;
 
 
-use HereYouGo\JSON\Exception\UnableToEncode;
-use HereYouGo\JSON\Exception\UnableToDecode;
+use HereYouGo\Converter\JSON\Exception\UnableToEncode;
+use HereYouGo\Converter\JSON\Exception\UnableToDecode;
 
 class JSON {
     /**

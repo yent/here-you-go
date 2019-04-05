@@ -22,7 +22,7 @@ class Event {
     private $name = '';
 
     /** @var mixed|null */
-    private $data = null;
+    public $data = null;
 
     /** @var mixed|null */
     public $result = null;
@@ -105,7 +105,7 @@ class Event {
         }
 
         if(!$this->default_prevented)
-            $this->result = $default();
+            $this->result = call_user_func_array($default, is_array($this->data) ? $this->data : [$this->data]);
 
         if(!$this->propagation_stopped) {
             foreach(self::getHandlers(self::AFTER, $this->name) as $handler) {
@@ -128,7 +128,7 @@ class Event {
      * @throws UnknownProperty
      */
     public function __get($name) {
-        if(in_array($name, ['name', 'data']))
+        if(in_array($name, ['name']))
             return $this->data;
 
         throw new UnknownProperty($this, $name);

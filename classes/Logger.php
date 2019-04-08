@@ -60,6 +60,8 @@ class Logger {
      * @param array $things
      */
     private static function log($level, array $things) {
+        self::setup();
+
         if($level > self::$level)
             return;
 

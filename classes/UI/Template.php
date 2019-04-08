@@ -82,7 +82,7 @@ class Template {
      *
      * @return string
      */
-    public function process(array $__vars) {
+    public function process(array $__vars = []) {
         foreach($__vars as $__k => $__v) {
             if($__k === 'this' || substr($__k, 0, 2) === '__') continue;
             $$__k = $__v;
@@ -108,7 +108,7 @@ class Template {
      *
      * @param array $__vars
      */
-    public function display(array $__vars) {
+    public function display(array $__vars = []) {
         echo $this->process($__vars);
     }
     

@@ -6,11 +6,10 @@
  *
  */
 
-namespace HereYouGo\Loggers;
+namespace HereYouGo\Logger;
 
 
 use HereYouGo\Logger;
-use HereYouGo\Logger\Base;
 
 /**
  * File based logger

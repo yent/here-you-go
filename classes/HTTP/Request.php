@@ -123,7 +123,7 @@ class Request {
         }
 
         if(array_key_exists('PATH_INFO', $_SERVER))
-            self::$path = trim(preg_replace('`/\s*/`', '', $_SERVER['PATH_INFO']));
+            self::$path = '/'.trim(preg_replace('`/\s*/`', '', $_SERVER['PATH_INFO']), '/');
 
         $type = 'application/binary';
         foreach (array('HTTP_CONTENT_TYPE', 'CONTENT_TYPE') as $k) {

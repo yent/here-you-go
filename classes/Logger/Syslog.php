@@ -8,9 +8,6 @@
 
 namespace HereYouGo\Logger;
 
-
-use HereYouGo\Logger\Base;
-
 /**
  * Syslog based logger
  *

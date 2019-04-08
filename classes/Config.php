@@ -52,7 +52,7 @@ class Config {
         if(!is_array($overrides))
             $overrides = [];
 
-        $allowed_overrides = self::get('allowed_overrides');
+        $allowed_overrides = array_key_exists('allowed_overrides', self::$parameters) ? self::$parameters['allowed_overrides'] : null;
         if($allowed_overrides && is_array($allowed_overrides))
             foreach($allowed_overrides as $key)
                 if(array_key_exists($key, $overrides))

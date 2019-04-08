@@ -64,6 +64,19 @@ class Request extends \HereYouGo\HTTP\Request {
         
             Response::setCallback('frame', $_GET['callback']);
         }
+
+        if(preg_match('`^(.+)\.([A-Za-z0-9]{1,5})$`', self::$path, $match)) {
+            self::$path = $match[1];
+
+            $format = $match[2];
+            if(array_key_exists('download', $_GET))
+                $format = 'download:'.$format;
+
+            if(array_key_exists('format_options', $_GET))
+                $format .= ':'.$_GET['format_options'];
+
+            Response::setFormat($format);
+        }
         
         // Get response filters
         foreach($_GET as $k => $v) {

@@ -13,7 +13,7 @@ spl_autoload_register(function($class) {
     if($class_path[0] !== 'HereYouGo')
         return;
 
-    $file = HYG_ROOT.'/classes/'.implode('/', array_slice($class_path, 1)).'.php';
+    $file = HYG_ROOT.'classes/'.implode('/', array_slice($class_path, 1)).'.php';
     if(file_exists($file)) {
         require_once $file;
 

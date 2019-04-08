@@ -33,6 +33,9 @@ abstract class Base extends Exception {
         parent::__construct($message, $code, $previous);
 
         $this->log($message);
+
+        foreach(explode("\n", $this->getTraceAsString()) as $line)
+            $this->log($line);
     }
 
     protected function log($thing) {

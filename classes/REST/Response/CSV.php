@@ -68,7 +68,7 @@ class CSV extends Structured {
         
         $field_separator = Response::getFormatOptions();
         if(!$field_separator) $field_separator = ',';
-        if(strlen($field_separator) !== 1) // Don not throw, use plain rendering to avoid infinite loop
+        if(strlen($field_separator) !== 1) // Do not throw, use plain rendering to avoid infinite loop
             throw new BadType('format_options', '1 chr long separator');
         
         $lines = self::getTable($data);

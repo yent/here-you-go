@@ -20,6 +20,21 @@ use PDOStatement;
  * Manages database connexion(s)
  *
  * @package HereYouGo
+ *
+ * @method static bool beginTransaction()
+ * @method static bool commit()
+ * @method static string errorCode()
+ * @method static array errorInfo()
+ * @method static int exec(string $statement)
+ * @method static mixed getAttribute(int $attribute)
+ * @method static array getAvailableDrivers()
+ * @method static bool inTransaction()
+ * @method static string lastInsertId(string $name = null)
+ * @method static Statement prepare(string $statement, array $driver_options = [])
+ * @method static Statement query(string $statement)
+ * @method static string quote(string $string, int $parameter_type = PDO::PARAM_STR)
+ * @method static bool rollBack()
+ * @method static bool setAttribute(int $attribute, mixed $value)
  */
 class DBI {
     /** @var self[] */
@@ -71,10 +86,29 @@ class DBI {
      * @param string $name
      * @param array $arguments
      *
-     * @return mixed
+     * @return Statement|mixed
      */
     public static function __callStatic($name, $arguments) {
         return call_user_func_array([self::local(), $name], $arguments);
+    }
+    
+    /**
+     * Get DSN for given config
+     *
+     * @param array $conf
+     *
+     * @return string
+     */
+    public static function getDsn($conf) {
+        if(array_key_exists('dsn', $conf))
+            return $conf['dsn'];
+        
+        $dsn = [];
+        foreach(['host', 'dbname', 'port', 'charset'] as $p)
+            if(array_key_exists($p, $conf))
+                $dsn[] = $p.'='.$conf[$p];
+    
+        return $conf['type'].':'.implode(';', $dsn);
     }
 
     /**
@@ -86,18 +120,8 @@ class DBI {
         $this->id = $id ? "remote.$id" : 'local';
 
         $conf = Config::get($id ? "remote_db.$id.*" : 'db.*');
-
-        if(array_key_exists('dsn', $conf)) {
-            $dsn = $conf['dsn'];
-
-        } else {
-            $dsn = [];
-            foreach(['host', 'dbname', 'port', 'charset'] as $p)
-                if(array_key_exists($p, $conf))
-                    $dsn[] = $p.'='.$conf[$p];
-
-            $dsn = $conf['type'].':'.implode(';', $dsn);
-        }
+        
+        $dsn = self::getDsn($conf);
 
         $user = array_key_exists('user', $conf) ? $conf['user'] : '';
         $passwd = array_key_exists('passwd', $conf) ? $conf['passwd'] : '';
@@ -115,7 +139,7 @@ class DBI {
      * @param string $name
      * @param array $arguments
      *
-     * @return mixed
+     * @return Statement|mixed
      *
      * @throws UnknownMethod
      * @throws CallFailed

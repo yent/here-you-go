@@ -9,10 +9,15 @@
 namespace HereYouGo\Model;
 
 
+use HereYouGo\Config;
+use HereYouGo\DBI;
 use HereYouGo\Logger;
 use HereYouGo\Model\Exception\Broken;
 
-class Updater {
+abstract class Updater {
+    /** @var self|null */
+    private static $backend = null;
+    
     /**
      * Run updater
      *
@@ -20,6 +25,12 @@ class Updater {
      */
     public static function run() {
         Logger::info('starting model updater');
+        
+        $type = explode(':', DBI::getDsn(Config::get('db.*')))[0];
+        self::$backend = __NAMESPACE__.'\\Backend\\'.ucfirst($type);
+        
+        if(!class_exists(self::$backend))
+            throw new Broken(self::$backend, 'unknown backend type');
 
         foreach(self::entities() as $entity)
             self::check($entity);
@@ -47,36 +58,7 @@ class Updater {
 
         return $entities;
     }
-
-    /**
-     * Get and check data map
-     *
-     * @param string $class
-     *
-     * @return array
-     *
-     * @throws Broken
-     */
-    private static function checkMap($class) {
-        /** @var Entity $class */
-        $map = $class::dataMap();
-
-        if(
-            !array_key_exists('fields', $map) ||
-            !is_array($map['fields']) ||
-            !count($map['fields'])
-        ) throw new Broken($class, 'has no fields');
-
-        if(
-            !array_key_exists('primary', $map) ||
-            !is_string($map['primary']) ||
-            !$map['primary'] ||
-            !array_key_exists($map['primary'], $map['fields'])
-        ) throw new Broken($class, 'misses primary key or defined primary key refers to unknown field');
-
-        return $map;
-    }
-
+    
     /**
      * Check database
      *
@@ -85,27 +67,49 @@ class Updater {
      * @throws Broken
      */
     private static function check($class) {
-        Logger::info("checking $class");
-
+        Logger::info("checking $class class");
+    
+        $backend = self::$backend;
+        
         /** @var Entity $class */
-        $map = self::checkMap($class);
-
-        foreach($class::relations() as $other => $relation) {
-            if($relation !== Entity::HAS_ONE) continue;
-
-            /** @var Entity $other */
-            $other_map = self::checkMap($other);
-
-            $pk = $other_map['fields'][$other_map['primary']];
-
-            $map['fields'][$other.'_'.$other_map['primary']] = $pk;
-        }
-
-        if(self::tableExists($class::table())) {
-            self::checktable($map);
+        $table = $class::getTable();
+        $map = $class::getDataMap();
+        
+        if(self::$backend::tableExists($table)) {
+            foreach($map as $property => $definition) {
+                Logger::info("checking {$definition->column} column in $table table");
+                
+                $backend::checkColumn($table, $definition);
+            }
 
         } else {
-            self::createTable($map);
+            Logger::info("$table table is missing, creating it");
+            $backend::createTable($table, $map);
         }
     }
+    
+    /**
+     * Check wether table exists
+     *
+     * @param string $table
+     *
+     * @return bool
+     */
+    abstract protected static function tableExists($table): bool;
+    
+    /**
+     * Check if column matches definition and updates it if it doesn't
+     *
+     * @param string $table
+     * @param Property $definition
+     */
+    abstract protected static function checkColumn($table, Property $definition);
+    
+    /**
+     * Create table
+     *
+     * @param string $table
+     * @param Property[] $map
+     */
+    abstract protected static function createTable($table, array $map);
 }

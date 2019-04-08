@@ -8,32 +8,136 @@
 
 namespace HereYouGo\Model;
 
+use HereYouGo\Model\Constant\Relation;
+use HereYouGo\Model\Exception\Broken;
+
 abstract class Entity {
-    const HAS_ONE = 1;
-    const HAS_MANY = 2;
+    /** @var array|null */
+    protected static $entity_analysis = null;
+    
+    /** @var array|null */
+    protected static $entity_relations = null;
+    
+    /** @var array|null */
+    protected static $entity_data_map = null;
+    
+    /**
+     * Analyse class
+     *
+     * @return array
+     *
+     * @throws Broken
+     */
+    final protected static function getAnalysis() {
+        if(is_null(static::$entity_analysis)) {
+            static::$entity_analysis = ['class' => ['has' => [], 'table' => static::class.'s'], 'properties' => []];
+            
+            try {
+                $reflexion = new \ReflectionClass(static::class);
+    
+                foreach(explode("\n", $reflexion->getDocComment()) as $line) {
+                    if(!preg_match('`^\s+(?:\*\s+)?@([^\s]+)\s+(.+)$`', $line, $match)) continue;
+                    static::$entity_analysis['class'][$match[1]][] = $match[2];
+                }
+                
+                $defaults = $reflexion->getDefaultProperties();
+                foreach($reflexion->getProperties() as $property) {
+                    $name = $property->getName();
+                    
+                    $dfn = preg_grep('`@var\s`', explode("\n", $property->getDocComment()));
+                    $dfn = preg_replace('`^.*@var\s+(.+)(?:\s+\*+/|$)$`', '$1', reset($dfn));
+    
+                    $default = array_key_exists($name, $defaults) ? $defaults[$name] : null;
+                    static::$entity_analysis['properties'][$name] = new Property(static::class, $name, $dfn, $default);
+                }
+                
+            } catch (\ReflectionException $e) {
+                throw new Broken(static::class, 'could not analyse class', $e);
+            }
+        }
+        
+        return static::$entity_analysis;
+    }
 
     /**
      * Get data map
      *
-     * @return array
+     * @param bool $with_relations
+     *
+     * @return Property[]
+     *
+     * @throws Broken
      */
-    abstract public static function dataMap(): array;
+    public static function getDataMap($with_relations = true) {
+        if(is_null(static::$entity_data_map)) {
+            static::$entity_data_map = [];
+            
+            $analysis = static::getAnalysis();
+            
+            static::$entity_data_map = $analysis['properties'];
+            
+            if($with_relations) {
+                foreach(static::getRelations() as $other => $relation) {
+                    try {
+                        if(!Relation::isValue($relation))
+                            throw new Broken(static::class, 'unknown relation type with ' . $other);
+                        
+                    } catch(\ReflectionException $e) {
+                        throw new Broken(static::class, 'failed to check relation');
+                    }
+                    
+                    if($relation === Relation::MANY) continue;
+                    
+                    /** @var self $other */
+                    foreach($other::getDataMap(false) as $property => $definition) {
+                        if(!$definition->primary) continue;
+                        
+                        $definition = $definition->getRelationProperty();
+                        if(array_key_exists($definition->name, static::$entity_data_map))
+                            throw new Broken(static::class, "relation key name {$definition->name} is already reserved for another property");
+                        
+                        static::$entity_data_map[$definition->name] = $definition;
+                    }
+                }
+            }
+        }
+        
+        return static::$entity_data_map;
+    }
 
     /**
      * Get relations with other entities
      *
-     * @return int[]
+     * @return string[]
+     *
+     * @throws Broken
      */
-    public static function relations() {
-        return [];
+    public static function getRelations() {
+        if(is_null(static::$entity_relations)) {
+            static::$entity_relations = [];
+            
+            foreach(static::getAnalysis()['class']['has'] as $has) {
+                if(!preg_match('`^(one|many)\s+(.+)$`', $has, $match))
+                    throw new Broken(static::class, 'malformed @has');
+                
+                if(!class_exists($match[2]))
+                    throw new Broken(static::class, "related class {$match[2]} does not exist");
+                
+                static::$entity_relations[$match[2]] = $match[1];
+            }
+        }
+        
+        return static::$entity_relations;
     }
 
     /**
      * Get table name
      *
      * @return string
+     *
+     * @throws Broken
      */
-    public static function table() {
-        return static::class.'s';
+    public static function getTable() {
+        return static::getAnalysis()['class']['table'];
     }
 }

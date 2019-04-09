@@ -43,6 +43,9 @@ class DBI {
     /** @var string */
     private $id = '';
 
+    /** @var string */
+    private $db_name = '';
+
     /** @var PDO */
     private $pdo = null;
 
@@ -123,6 +126,9 @@ class DBI {
         
         $dsn = self::getDsn($conf);
 
+        if(preg_match('`(?:^|;)dbanme=(.+)(?:;.+|$)`', $dsn, $match))
+            $this->db_name = $match[1];
+
         $user = array_key_exists('user', $conf) ? $conf['user'] : '';
         $passwd = array_key_exists('passwd', $conf) ? $conf['passwd'] : '';
         $options = array_key_exists('options', $conf) ? $conf['options'] : [];
@@ -168,5 +174,14 @@ class DBI {
      */
     public function getId() {
         return $this->id;
+    }
+
+    /**
+     * Get database name
+     *
+     * @return string
+     */
+    public function getDbName() {
+        return $this->db_name;
     }
 }

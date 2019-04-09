@@ -15,6 +15,7 @@ use HereYouGo\Exception\UnknownProperty;
 use HereYouGo\Model\Constant\IntSize;
 use HereYouGo\Model\Constant\Type;
 use HereYouGo\Model\Exception\Broken;
+use ReflectionException;
 
 /**
  * Class Property
@@ -30,8 +31,7 @@ use HereYouGo\Model\Exception\Broken;
  * @property mixed|null $default
  * @property bool $primary
  * @property bool $auto_increment
- * @property string|bool $index
- * @property string|bool $unique
+ * @property bool[] $indexes
  * @property Converter|false $converter
  * @property string|null $column
  */
@@ -63,11 +63,8 @@ class Property {
     /** @var bool */
     private $auto_increment = false;
     
-    /** @var string|bool */
-    private $index = false;
-    
-    /** @var string|bool */
-    private $unique = false;
+    /** @var bool[] */
+    private $indexes = [];
     
     /** @var Converter|false */
     private $converter = false;
@@ -84,7 +81,7 @@ class Property {
      * @param mixed|null $default
      *
      * @throws Broken
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function __construct($class, $name, $definition, $default) {
         $this->class = $class;
@@ -190,26 +187,12 @@ class Property {
         
         $this->column = $definition['column'];
     
-        if(array_key_exists('index', $definition)) {
-            if(!$definition['index'])
-                $definition['index'] = $definition['column'];
-        
-            if(!preg_match('`^[a-z](?:[a-z0-9_]*[a-z0-9])?$`', $definition['index']))
-                throw new Broken("{$this->class}->{$this->name}", 'malformed index name');
-        
-            $this->index = $definition['index'];
-        }
+        if(array_key_exists('index', $definition))
+            $this->addIndex($definition['index'], false);
     
-        if(array_key_exists('unique', $definition)) {
-            if(!$definition['unique'])
-                $definition['unique'] = $definition['column'];
-        
-            if(!preg_match('`^[a-z](?:[a-z0-9_]*[a-z0-9])?$`', $definition['unique']))
-                throw new Broken("{$this->class}->{$this->name}", 'malformed unique index name');
-        
-            $this->unique = $definition['unique'];
-        }
-        
+        if(array_key_exists('unique', $definition))
+            $this->addIndex($definition['unique'], false);
+
         if(array_key_exists('convert', $definition)) {
             $converter = '\\HereYouGo\\Converter\\'.$definition['convert'];
             if(Autoloader::exists($converter)) {
@@ -244,6 +227,24 @@ class Property {
             };
         }
     }
+
+    /**
+     * Add index
+     *
+     * @param string $name
+     * @param bool $unique
+     *
+     * @throws Broken
+     */
+    private function addIndex($name, $unique = false) {
+        $indexes = is_bool($name) ? [$this->column] : array_map('trim', explode(',', $name));
+        foreach($indexes as $index) {
+            if (!preg_match('`^[a-z](?:[a-z0-9_]*[a-z0-9])?$`', $index))
+                throw new Broken("{$this->class}->{$this->name}", 'malformed index name');
+
+            $this->indexes[$index] = $unique;
+        }
+    }
     
     /**
      * Clone and tweak property for use as relation key to another class
@@ -265,8 +266,9 @@ class Property {
         $clone->default = false;
         $clone->primary = false;
         $clone->auto_increment = false;
-        $clone->index = false;
-        
+        $clone->indexes = [$clone->column];
+        $clone->uniques = [];
+
         return $clone;
     }
     
@@ -280,7 +282,11 @@ class Property {
      * @throws UnknownProperty
      */
     public function __get($name) {
-        if(in_array($name, ['class', 'name', 'type', 'size', 'null', 'default', 'primary', 'auto_increment', 'index', 'converter', 'column']))
+        if(in_array($name, [
+            'class', 'name', 'type', 'size', 'null', 'default',
+            'primary', 'auto_increment', 'indexes', 'uniques',
+            'converter', 'column'
+        ]))
             return $this->$name;
     
         throw new UnknownProperty($this, $name);

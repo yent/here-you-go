@@ -97,14 +97,15 @@ class Event {
      *
      * @return mixed|null
      */
-    public function trigger(callable $default) {
+    public function trigger(callable $default = null) {
         foreach(self::getHandlers(self::BEFORE, $this->name) as $handler) {
             call_user_func($handler, $this);
             if($this->propagation_stopped)
                 break;
         }
 
-        if(!$this->default_prevented)
+        $this->result = null;
+        if($default && !$this->default_prevented)
             $this->result = call_user_func_array($default, is_array($this->data) ? $this->data : [$this->data]);
 
         if(!$this->propagation_stopped) {

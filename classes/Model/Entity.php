@@ -8,8 +8,11 @@
 
 namespace HereYouGo\Model;
 
+use HereyouGo\Event;
 use HereYouGo\Model\Constant\Relation;
 use HereYouGo\Model\Exception\Broken;
+use ReflectionException;
+use ReflectionClass;
 
 abstract class Entity {
     /** @var array|null */
@@ -33,7 +36,7 @@ abstract class Entity {
             static::$entity_analysis = ['class' => ['has' => [], 'table' => static::class.'s'], 'properties' => []];
             
             try {
-                $reflexion = new \ReflectionClass(static::class);
+                $reflexion = new ReflectionClass(static::class);
     
                 foreach(explode("\n", $reflexion->getDocComment()) as $line) {
                     if(!preg_match('`^\s+(?:\*\s+)?@([^\s]+)\s+(.+)$`', $line, $match)) continue;
@@ -51,7 +54,7 @@ abstract class Entity {
                     static::$entity_analysis['properties'][$name] = new Property(static::class, $name, $dfn, $default);
                 }
                 
-            } catch (\ReflectionException $e) {
+            } catch (ReflectionException $e) {
                 throw new Broken(static::class, 'could not analyse class', $e);
             }
         }
@@ -73,16 +76,25 @@ abstract class Entity {
             static::$entity_data_map = [];
             
             $analysis = static::getAnalysis();
-            
-            static::$entity_data_map = $analysis['properties'];
-            
+
+            /** @var Property[] $additional_data */
+            $properties = (new Event('datamap', static::class))->trigger(function() {
+                return [];
+            });
+
+            if(!is_array($properties) ||array_filter($properties, function($data) {
+                return !($data instanceof Property);
+            })) throw new Broken(static::class, 'event returned properties is not an array of Property');
+
+            static::$entity_data_map = array_merge($properties, $analysis['properties']);
+
             if($with_relations) {
                 foreach(static::getRelations() as $other => $relation) {
                     try {
                         if(!Relation::isValue($relation))
                             throw new Broken(static::class, 'unknown relation type with ' . $other);
                         
-                    } catch(\ReflectionException $e) {
+                    } catch(ReflectionException $e) {
                         throw new Broken(static::class, 'failed to check relation');
                     }
                     
@@ -100,6 +112,25 @@ abstract class Entity {
                     }
                 }
             }
+
+            $auto_inc = 0;
+            $indexes = [];
+            foreach(static::$entity_data_map as $definition) {
+                foreach($definition->indexes as $index => $unique) {
+                    if(array_key_exists($index, $indexes)) {
+                        if($unique !== $indexes[$index])
+                            throw new Broken(static::class, 'index cannot be unique and not unique at the same time');
+
+                    } else {
+                        $indexes[$index] = $unique;
+                    }
+                }
+
+                if($definition->auto_increment)
+                    $auto_inc++;
+            }
+
+            if($auto_inc > 1) throw new Broken(static::class, 'cannot have more than one auto increment column');
         }
         
         return static::$entity_data_map;
@@ -140,4 +171,11 @@ abstract class Entity {
     public static function getTable() {
         return static::getAnalysis()['class']['table'];
     }
+
+    /**
+     * Get cache key
+     *
+     * @return string
+     */
+    abstract public function getCacheKey(): string;
 }

@@ -78,9 +78,11 @@ abstract class Updater {
         if(self::$backend::tableExists($table)) {
             foreach($map as $property => $definition) {
                 Logger::info("checking {$definition->column} column in $table table");
-                
                 $backend::checkColumn($table, $definition);
             }
+
+            Logger::info("checking constraints in $table table");
+            $backend::checkConstraints($table, $map);
 
         } else {
             Logger::info("$table table is missing, creating it");
@@ -104,6 +106,14 @@ abstract class Updater {
      * @param Property $definition
      */
     abstract protected static function checkColumn($table, Property $definition);
+
+    /**
+     * Check table constraints
+     *
+     * @param string $table
+     * @param Property[] $map
+     */
+    abstract protected static function checkConstraints($table, array $map);
     
     /**
      * Create table

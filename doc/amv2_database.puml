@@ -1,0 +1,116 @@
+@startuml
+sprite $pk [17x12/16z] bOqv3e1030CJRzPn9Fx_NWY7n4eqJ3TJs6OVa5pTpD-5tl3YyFHG-4DsqAOnWgawWp0r0KGagDuGMYMJxbMrBxzLPJ_O0G00
+
+class Contracts {
+  <$pk> id uint medium
+  provider_id uint medium
+  name vc64
+  start date
+  end date
+  distributions txt
+}
+
+class Contracts_Places {
+  <$pk> id uint medium
+  contract_id uint medium
+  place_id uint small
+}
+
+Contracts::id "1" --> "inf" Contracts_Places::contract_id
+
+class Places {
+  <$pk> id uint small
+  name vc128
+  geoloc vc32
+  url vc200
+}
+
+Contracts_Places::place_id "inf" --> "1" Places::id
+
+class Providers {
+  <$pk> id uint small
+  name vc128
+  description txt
+  url vc200
+  address txt
+  geoloc vc32
+  show_on_maps uint tiny
+}
+
+Providers::id "1" --> "inf" Contracts::provider_id
+
+class Products {
+  <$pk> id uint medium
+  contract_id uint medium
+  name vc64
+  unit vc32
+  price txt
+}
+
+Products::contract_id "1" --> "inf" Contracts::id
+
+class Members {
+  <$pk> id uint medium
+  firstname vc64
+  lastname vc64
+  alt_person vc128
+  address txt
+  zipcode vc5
+  town vc32
+  geoloc vc32
+  telephones txt
+  cellphones txt
+  emails txt
+  people_at_home uint tiny
+  receive_infos uint tiny
+  share_infos uint tiny
+  joined date
+  renewed date
+  comment txt
+}
+
+class Subscriptions {
+  <$pk> id uint
+  contract_id uint medium
+  member_id uint medium
+  place_id uint small
+  sub date
+  payment decimal6.2
+  ignore_problems uint tiny
+  info txt
+}
+
+Members::id "1" -> "inf" Subscriptions::member_id
+Contracts::id "1" -> "inf" Subscriptions::contract_id
+Places::id "1" -> "inf" Subscriptions::place_id
+
+class Subscriptions_Products {
+  <$pk> id uint
+  subscription_id uint
+  product_id uint medium
+  quantity float
+}
+
+Subscriptions_Products::subscription_id "inf" --> "1" Subscriptions::id
+Subscriptions_Products::product_id "inf" --> "1" Products::id
+
+class Mailings {
+  <$pk> id uint
+  member_id uint medium
+  data txt
+  status uint tiny
+}
+
+Mailings::member_id "inf" --> "1" Members::id
+
+class Distributions {
+  <$pk> id uint medium
+  place_id uint small
+  date date
+  advisor v128
+  members vc250
+}
+
+Distributions::place_id "inf" --> "1" Places::id
+
+@enduml

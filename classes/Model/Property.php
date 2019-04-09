@@ -266,8 +266,7 @@ class Property {
         $clone->default = false;
         $clone->primary = false;
         $clone->auto_increment = false;
-        $clone->indexes = [$clone->column];
-        $clone->uniques = [];
+        $clone->indexes = [];
 
         return $clone;
     }

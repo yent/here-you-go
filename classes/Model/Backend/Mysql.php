@@ -241,6 +241,8 @@ class Mysql extends Updater {
             case Type::TEXT:        return 'TEXT';
             case Type::LONG_TEXT:   return 'LONGTEXT';
         }
+
+        return '';
     }
 
     /**

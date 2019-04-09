@@ -72,8 +72,8 @@ abstract class Updater {
         $backend = self::$backend;
         
         /** @var Entity $class */
-        $table = $class::getTable();
-        $map = $class::getDataMap();
+        $table = $class::model()->table;
+        $map = $class::model()->data_map;
         
         if(self::$backend::tableExists($table)) {
             foreach($map as $property => $definition) {

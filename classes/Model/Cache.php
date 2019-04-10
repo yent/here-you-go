@@ -12,6 +12,7 @@ namespace HereYouGo\Model;
 class Cache {
     const ENTITIY = 'entity';
     const RELATION = 'relation';
+    const COLLECTIONS = 'collections';
 
     /** @var array */
     private static $items = [];
@@ -117,9 +118,9 @@ class Cache {
                 $path[] = $key;
         }
 
-        $item = self::get($path);
-        if($item)
-            return $item;
+        $entity = self::get($path);
+        if($entity)
+            return $entity;
 
         return ($class && $key) ? null : [];
     }
@@ -158,6 +159,8 @@ class Cache {
 
         self::dropRelation($entity);
 
+        self::dropCollection($entity);
+
         self::drop($path);
     }
 
@@ -167,7 +170,7 @@ class Cache {
      * @param Entity $entity
      * @param Entity|string $other
      *
-     * @return string[]|bool
+     * @return Entity[]|bool|null
      */
     public static function getRelation(Entity $entity, $other) {
         $path = [self::RELATION, get_class($entity), $entity->getCacheKey()];
@@ -181,13 +184,15 @@ class Cache {
         }
 
         $relation = self::get($path);
-        if(!$relation)
-            return ($other instanceof Entity) ? false : [];
+        if(is_null($relation))
+            return null;
 
         if($other instanceof Entity)
             return true;
 
-        return array_keys($relation); // entities cache keys
+        return array_filter(array_map(function($key) use($other) {
+            return self::getEntity($other, $key);
+        }, array_keys($relation)));
     }
 
     /**
@@ -291,5 +296,78 @@ class Cache {
         }
 
         self::drop($path);
+    }
+
+    /**
+     * Get cached collection
+     *
+     * @param Query $query
+     *
+     * @return Entity[]|null
+     */
+    public static function getCollection(Query $query) {
+        $entities = self::get([self::COLLECTIONS, $query->cache_key]);
+        if(is_null($entities))
+            return null;
+
+        return array_filter(array_map(function($cache) {
+            return self::getEntity($cache['class'], $cache['key']);
+        }, $entities));
+    }
+
+    /**
+     * Set cached collection entities
+     *
+     * @param Query $query
+     * @param Entity[] $entities
+     */
+    public static function setCollection(Query $query, array $entities) {
+        self::set([self::COLLECTIONS, $query->cache_key], array_values(array_map(function(Entity $entity) {
+            return ['class' => get_class($entity), 'key' => $entity->getCacheKey()];
+        }, $entities)));
+    }
+
+    /**
+     * Drop cache collection
+     *
+     * @param Query|Entity|string $thing
+     */
+    public static function dropCollection($thing) {
+        if($thing === '*') {
+            self::drop([self::COLLECTIONS]);
+
+        } else if(is_string($thing)) {
+            foreach(self::find([self::COLLECTIONS]) as &$queries) {
+                foreach($queries as $key => &$entities) {
+                    $entities = array_filter($entities, function($cache) use($thing) {
+                        return $cache['class'] !== $thing;
+                    });
+
+                    if(!$entities)
+                        unset($queries[$key]);
+                }
+
+                if(!$queries)
+                    unset($queries);
+            }
+
+        } else if($thing instanceof Query) {
+            self::drop([self::COLLECTIONS, $thing->cache_key]);
+
+        } else if($thing instanceof Entity) {
+            foreach(self::find([self::COLLECTIONS]) as &$queries) {
+                foreach($queries as $key => &$entities) {
+                    $entities = array_filter($entities, function($cache) use($thing) {
+                        return ($cache['class'] !== get_class($thing)) || ($cache['key'] !== $thing->getCacheKey());
+                    });
+
+                    if(!$entities)
+                        unset($queries[$key]);
+                }
+
+                if(!$queries)
+                    unset($queries);
+            }
+        }
     }
 }

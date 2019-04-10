@@ -217,12 +217,9 @@ class Locale {
      * @throws \HereYouGo\Exception\BadType
      */
     public static function translate($id) {
-        self::compileDictionary();
-        
-        if(array_key_exists($id, self::$dictionary))
-            return new Translation($id, self::$dictionary[$id]);
-        
-        return new Translation($id, '', true);
+        $exists = self::isTranslatable($id);
+
+        return new Translation($id, $exists ? self::$dictionary[$id] : '', !$exists);
     }
     
     /**
@@ -236,5 +233,18 @@ class Locale {
      */
     public static function tr($id) {
         return self::translate($id);
+    }
+
+    /**
+     * Check wether id has translation
+     *
+     * @param string $id
+     *
+     * @return bool
+     */
+    public static function isTranslatable($id) {
+        self::compileDictionary();
+
+        return array_key_exists($id, self::$dictionary);
     }
 }

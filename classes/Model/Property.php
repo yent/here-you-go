@@ -270,6 +270,10 @@ class Property {
 
         return $clone;
     }
+
+    public function castToEntity($value) {
+        
+    }
     
     /**
      * Getter

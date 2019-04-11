@@ -10,7 +10,11 @@
 namespace HereYouGo\Model;
 
 
+use DateTime;
+use DateTimeZone;
+use Exception;
 use HereYouGo\Autoloader;
+use HereYouGo\Exception\BadType;
 use HereYouGo\Exception\UnknownProperty;
 use HereYouGo\Model\Constant\IntSize;
 use HereYouGo\Model\Constant\Type;
@@ -22,55 +26,59 @@ use ReflectionException;
  *
  * @package HereYouGo\Model
  *
- * @property string $class
- * @property string $name
- * @property string $type
- * @property mixed|null $size
- * @property bool $unsigned
- * @property bool $null
- * @property mixed|null $default
- * @property bool $primary
- * @property bool $auto_increment
- * @property bool[] $indexes
- * @property Converter|false $converter
- * @property string|null $column
+ * @property-read string $class
+ * @property-read string $name
+ * @property-read string $type
+ * @property-read mixed|null $size
+ * @property-read bool $unsigned
+ * @property-read bool $null
+ * @property-read mixed|null $default
+ * @property-read bool $primary
+ * @property-read bool $auto_increment
+ * @property-read bool[] $indexes
+ * @property-read Converter|false $converter
+ * @property-read string|null $column
+ * @property-read string|null $related_class
  */
 class Property {
     /** @var string */
-    private $class = '';
+    protected $class = '';
     
     /** @var string */
-    private $name = '';
+    protected $name = '';
     
     /** @var string */
-    private $type = '';
+    protected $type = '';
     
     /** @var mixed|null */
-    private $size = null;
+    protected $size = null;
     
     /** @var bool */
-    private $unsigned = false;
+    protected $unsigned = false;
     
     /** @var bool */
-    private $null = false;
+    protected $null = false;
     
     /** @var mixed|null */
-    private $default = null;
+    protected $default = null;
     
     /** @var bool */
-    private $primary = false;
+    protected $primary = false;
     
     /** @var bool */
-    private $auto_increment = false;
+    protected $auto_increment = false;
     
     /** @var bool[] */
-    private $indexes = [];
+    protected $indexes = [];
     
     /** @var Converter|false */
-    private $converter = false;
+    protected $converter = false;
     
     /** @var string|null */
-    private $column = null;
+    protected $column = null;
+
+    /** @var string|null */
+    protected $related_class = null;
     
     /**
      * Property constructor.
@@ -249,30 +257,143 @@ class Property {
     /**
      * Clone and tweak property for use as relation key to another class
      *
+     * @param Entity|string $other_class
+     *
      * @return self
      *
      * @throws Broken
      */
-    public function getRelationProperty() {
+    public function getRelationProperty($other_class) {
         if($this->null)
             throw new Broken("{$this->class}->{$this->name}", 'cannot use nullable property as relation key');
         
-        $clone = clone $this;
-        
-        $clone->name = $clone->class.'_'.$clone->name;
-        $clone->column = $clone->class.'_'.$clone->column;
-        
-        $clone->null = false;
-        $clone->default = false;
-        $clone->primary = false;
-        $clone->auto_increment = false;
-        $clone->indexes = [];
+        $clone = clone $this; // IMPORTANT
+        $clone->makeRelationProperty($other_class);
 
         return $clone;
     }
 
+    /**
+     * Transform property to relation property
+     *
+     * @param string $other_class
+     */
+    protected function makeRelationProperty($other_class) {
+        $this->name = $this->class.'_'.$this->name;
+        $this->column = $this->class.'_'.$this->column;
+
+        $this->null = false;
+        $this->default = false;
+        $this->primary = false;
+        $this->auto_increment = false;
+        $this->indexes = [];
+
+        $this->related_class = $other_class;
+    }
+
+    /**
+     * Cast database value to entity type
+     *
+     * @param string $value
+     *
+     * @return mixed
+     *
+     * @throws BadType
+     * @throws Broken
+     */
     public function castToEntity($value) {
-        
+        if($this->converter)
+            $value = $this->converter->decode($value);
+
+        if(is_null($value)) {
+            if(!$this->null)
+                throw new Broken($this, 'got null value but is not nullable');
+
+            return $value;
+        }
+
+        switch($this->type) {
+            case Type::BOOL:    return $value === '1';
+
+            case Type::INT:     return (int)$value;
+            case Type::DECIMAL: return (float)$value;
+            case Type::FLOAT:   return (float)$value;
+            case Type::DOUBLE:  return (double)$value;
+
+            case Type::DATE:
+            case Type::DATE_TIME:
+            case Type::TIME:
+                try {
+                    $value = (int)(new DateTime($value, new DateTimeZone('UTC')))->format('U');
+                } catch(Exception $e) {
+                    throw new Broken($this, 'failed to parse to DateTime', $e);
+                }
+
+                if($this->type === Type::TIME)
+                    $value %= 86400;
+
+                return $value;
+
+            case Type::STRING:
+            case Type::TEXT:
+            case Type::LONG_TEXT: return (string)$value;
+
+            default: throw new BadType($this, 'One of '.Type::class);
+        }
+    }
+
+    /**
+     * Cast entity value to database type
+     *
+     * @param mixed $value
+     * @return string
+     *
+     * @throws BadType
+     * @throws Broken
+     */
+    public function castToDatabase($value) {
+        if($this->converter) {
+            return $this->converter->encode($value);
+
+        } else {
+            if(is_null($value)) {
+                if(!$this->null)
+                    throw new Broken($this, 'got null value but is not nullable');
+
+                return $value;
+            }
+
+            switch($this->type) {
+                case Type::BOOL:    return $value ? '1' : '0';
+
+                case Type::INT:
+                case Type::FLOAT:
+                case Type::DOUBLE:  return "$value";
+
+                case Type::DECIMAL:
+                    $p = $this->size['precision'];
+                    $d = $this->size['decimal_places'];
+                    $i = $p - $d;
+                    return sprintf("%$i.$d", $value);
+
+                case Type::DATE:
+                case Type::DATE_TIME:
+                case Type::TIME:
+                    try {
+                        $format = [Type::DATE => 'Y-m-d', Type::DATE_TIME => 'Y-m-d H:i:s', Type::TIME => 'H:i:s'][$this->type];
+                        return (new DateTime('@'.$value, new DateTimeZone('UTC')))->format($format);
+
+                    } catch(Exception $e) {
+                        throw new Broken($this, 'failed to format DateTime', $e);
+                    }
+
+                case Type::STRING:
+                case Type::TEXT:
+                case Type::LONG_TEXT: return "$value";
+
+                default: throw new BadType($this, 'One of '.Type::class);
+            }
+        }
     }
     
     /**
@@ -288,7 +409,7 @@ class Property {
         if(in_array($name, [
             'class', 'name', 'type', 'size', 'null', 'default',
             'primary', 'auto_increment', 'indexes', 'uniques',
-            'converter', 'column'
+            'converter', 'column', 'related_class'
         ]))
             return $this->$name;
     

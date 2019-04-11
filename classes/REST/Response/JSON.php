@@ -14,6 +14,11 @@ use HereYouGo\Converter\JSON as JSONConv;
 use HereYouGo\Converter\JSON\Exception\UnableToEncode;
 use HereYouGo\REST\Exception;
 
+/**
+ * Class JSON
+ *
+ * @package HereYouGo\REST\Response
+ */
 class JSON extends Structured {
     /**
      * Constructor

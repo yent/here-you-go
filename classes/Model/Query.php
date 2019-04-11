@@ -12,46 +12,57 @@ use HereYouGo\Model\Exception\Broken;
  *
  * @package HereYouGo\Model
  *
- * @property string $class
- * @property string $table
- * @property string[] $columns
- * @property string $criteria
- * @property string[] $placeholders
- * @property Query[] $joins
- * @property Query|null $joined_to
- * @property string|null $joined_on
- * @property string|null $joined_name
- * @property Query $main
- * @property string $table_alias
- * @property string $cache_key
+ * @property-read int $id
+ * @property-read string $class
+ * @property-read string $table
+ * @property-read string[] $columns
+ * @property-read string $criteria
+ * @property-read string[] $placeholders
+ * @property-read Query[] $joins
+ * @property-read Query|null $joined_to
+ * @property-read string|null $joined_on
+ * @property-read string|null $joined_name
+ * @property-read string|null $scope
+ * @property-read Query $main
+ * @property-read string $table_alias
+ * @property-read string $cache_key
  */
 class Query {
-    /** @var string */
-    private $class = '';
+    const LEFT = 'left';
+    const RIGHT = 'right';
+
+    /** @var int */
+    protected $id = 0;
 
     /** @var string */
-    private $table = '';
+    protected $class = '';
+
+    /** @var string */
+    protected $table = '';
 
     /** @var string[] */
-    private $columns = [];
+    protected $columns = [];
 
     /** @var string */
-    private $criteria = '';
+    protected $criteria = '';
 
     /** @var string[] */
-    private $placeholders = [];
+    protected $placeholders = [];
 
     /** @var (self|string)[] */
-    private $joins = [];
+    protected $joins = [];
 
     /** @var (self|string)[]|null */
-    private $joined_to = null;
+    protected $joined_to = null;
 
     /** @var string|null */
-    private $joined_on = null;
+    protected $joined_on = null;
 
     /** @var string|null */
-    private $joined_name = null;
+    protected $joined_name = null;
+
+    /** @var int */
+    protected static $cid = 0;
 
     /**
      * Query constructor.
@@ -63,6 +74,8 @@ class Query {
      * @throws Broken
      */
     public function __construct($class, $criteria, $placeholders = []) {
+        $this->id = static::$cid++;
+
         $this->class = $class;
         $this->table = $class::model()->table;
 
@@ -90,7 +103,21 @@ class Query {
     }
 
     /**
-     * Join query / queries
+     * Back-reference the join
+     *
+     * @param Query $query
+     *
+     * @throws Broken
+     */
+    public function joinedTo(Query $query) {
+        if(!$this->joined_on)
+            throw new Broken($this, 'cannot join without "on" criteria');
+
+        $this->joined_to = $query;
+    }
+
+    /**
+     * JoinCollection query / queries
      *
      * @param self|array $query
      *
@@ -107,10 +134,7 @@ class Query {
         }
 
         if($query instanceof self) {
-            if(!$query->joined_on)
-                throw new Broken($query, 'cannot join without criteria');
-
-            $query->joined_to = $this;
+            $query->joinedTo($this);
             $this->joins[] = $query;
 
             return $query;
@@ -123,27 +147,56 @@ class Query {
      * Scope class properties in sql fragment
      *
      * @param Entity|string $class
-     * @param string $query
-     * @param string|null $tables
+     * @param string $statement
+     * @param string $scope
      *
      * @return string
      *
      * @throws Broken
      */
-    protected static function castAndScopeColumns($class, $query, $table = null) {
+    protected static function castAndScopeColumns($class, $statement, $scope) {
         $properties = $class::model()->data_map;
 
-        if(!$table)
-            $table = $class::model()->table;
-
         foreach($properties as $property) {
+            $replace = ["`(?<!\.)$property->column`"];
             if($property->column !== $property->name)
-                $query = preg_replace("`(?<!\.)`$property->name", $property->column, $query);
+                $replace[] = "`(?<!\.)$property->name`";
 
-            $query = preg_replace("`(?<!\.)`$property->column", "$table.$property->column", $query);
+            $statement = preg_replace($replace, "$scope.$property->column", $statement);
         }
 
-        return $query;
+        // placeholders
+        $statement = preg_replace('`:[a-z0-9_]+`', ":{$scope}___$1", $statement);
+
+        return $statement;
+    }
+
+    /**
+     * Scope class properties in on clause
+     *
+     * @param string $side
+     * @param Entity|string $class
+     * @param string $statement
+     * @param string $scope
+     *
+     * @return string
+     *
+     * @throws Broken
+     */
+    protected static function castAndScopeOn($side, $class, $statement, $scope) {
+        $properties = $class::model()->data_map;
+
+        foreach($properties as $property) {
+            $replace = [($side === self::LEFT) ? "`(?<!\.)$property->column\s*=`" : "`=\s*$property->column`"];
+            if($property->column !== $property->name)
+                $replace[] = ($side === self::LEFT) ? "`(?<!\.)$property->name\s*=`" : "`=\s*$property->name`";
+
+            $by = [($side === self::LEFT) ? "$scope.$property->column =" : "= $scope.$property->column"];
+
+            $statement = preg_replace($replace, $by, $statement);
+        }
+
+        return $statement;
     }
 
     /**
@@ -174,17 +227,20 @@ class Query {
         }
 
         if($this->joined_to) {
-            array_unshift($from, "JOIN $this->table AS $this->joined_name ON ($this->joined_on)");
+            $left = $this->joined_to;
+            $on = self::castAndScopeOn(self::LEFT, $left->class, $this->joined_on, $left->scope);
+            $on = self::castAndScopeOn(self::RIGHT, $this->class, $on, $this->scope);
+
+            array_unshift($from, "JOIN $this->table AS $this->scope ON ($on)");
 
         } else {
-            array_unshift($from, $this->table);
+            array_unshift($from, "$this->table AS $this->scope");
         }
 
-        $column_prefix = $this->joined_name ? $this->joined_name : $this->table;
         foreach(array_keys($this->columns) as $column)
-            $columns[] = "$this->table.$column AS {$column_prefix}___$column";
+            $columns[] = "$this->table.$column AS {$this->scope}___$column";
 
-        $criteria[] = self::castAndScopeColumns($this->class, $this->criteria, $this->joined_name);
+        $criteria[] = self::castAndScopeColumns($this->class, $this->criteria, $this->scope);
 
         if(!$as_string)
             return ['columns' => $columns, 'from' => $from, 'criteria' => $criteria];
@@ -212,7 +268,7 @@ class Query {
             $placeholders = array_merge($placeholders, $joined->getAggregatedPlaceholders(true));
 
         foreach($this->placeholders as $k => $v)
-            $placeholders[':'.$this->class.'___'.substr($k, 1)] = $v;
+            $placeholders[':'.$this->scope.'___'.substr($k, 1)] = $v;
 
         return $placeholders;
     }
@@ -220,24 +276,25 @@ class Query {
     /**
      * Split and categorize data according to join structure
      *
-     * @param array $joined_data
+     * @param array $data
      *
-     * @return array
+     * @return ResultSet
+     *
+     * @throws Broken
      */
-    public function categorizeJoinedData(array $joined_data) {
-        $entry = ['class' => $this->class, 'data' => [], 'joins' => []];
+    public function categorizeData(array $data) {
+        $result = [];
+        foreach($data as $k => $v) {
+            if(!preg_match("`^{$this->scope}___(.+)$`", $k, $match)) continue;
 
-        $column_prefix = preg_quote($this->joined_name ? $this->joined_name : $this->table, '`');
-        foreach($joined_data as $k => $v) {
-            if(!preg_match("`^{$column_prefix}___(.+)$`", $k, $match)) continue;
-
-            $entry['data'][$match[1]] = $v;
+            $result[$match[1]] = $v;
         }
 
+        $results = [new Result($this, $result)];
         foreach($this->joins as $join)
-            $entry['joins'][$join->joined_name] = $join->categorizeJoinedData($joined_data);
+            $results = array_merge($results, $join->categorizeData($data));
 
-        return $entry;
+        return new ResultSet($results);
     }
 
     /**
@@ -250,19 +307,20 @@ class Query {
      * @throws UnknownProperty
      */
     public function __get($name) {
-        if(in_array($name, ['class', 'table', 'columns', 'criteria', 'placeholders', 'joins', 'joined_to', 'joined_on', 'joined_name']))
+        if(in_array($name, ['id', 'class', 'table', 'columns', 'criteria', 'placeholders', 'joins', 'joined_to', 'joined_on', 'joined_name']))
             return $this->$name;
 
         if($name === 'main')
             return $this->joined_to ? $this->joined_to->main : $this;
 
+        if($name === 'scope')
+            return "query_scope_$this->id";
+
         if($name === 'table_alias')
             return $this->joined_to ? $this->joined_to->table_alias.'t'.array_search($this, $this->joined_to->joins) : '';
 
-        if($name === 'cache_key') {
-            $ph = serialize($this->placeholders);
-            return md5("$this->class/$this->criteria($ph)");
-        }
+        if($name === 'cache_key')
+            return md5(serialize($this));
 
         throw new UnknownProperty($this, $name);
     }

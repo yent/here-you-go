@@ -15,6 +15,11 @@ use HereYouGo\JSON;
 use HereYouGo\JSON\Exception\UnableToDecode;
 use HereYouGo\JSON\Exception\UnableToEncode;
 
+/**
+ * Class Locale
+ *
+ * @package HereYouGo\UI
+ */
 class Locale {
     /** @var string[] */
     private static $available = [];

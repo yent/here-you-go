@@ -13,6 +13,11 @@ namespace HereYouGo\REST;
 use HereYouGo\Exception\Base;
 use HereYouGo\Exception\Detailed;
 
+/**
+ * Class Exception
+ *
+ * @package HereYouGo\REST
+ */
 class Exception extends Detailed {
     public function __construct(string $message, array $private = [], array $public = [], int $code = 500, Base $previous = null) {
         if(!array_key_exists('method', $public))

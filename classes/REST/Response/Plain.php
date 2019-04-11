@@ -12,6 +12,11 @@ namespace HereYouGo\REST\Response;
 
 use HereYouGo\Exception\BadType;
 
+/**
+ * Class Plain
+ *
+ * @package HereYouGo\REST\Response
+ */
 class Plain extends Base {
     /**
      * Constructor

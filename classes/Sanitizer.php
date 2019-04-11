@@ -8,7 +8,11 @@
 
 namespace HereYouGo;
 
-
+/**
+ * Class Sanitizer
+ *
+ * @package HereYouGo
+ */
 class Sanitizer {
     /**
      * Sanitize user data

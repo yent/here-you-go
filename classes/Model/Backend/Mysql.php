@@ -16,6 +16,11 @@ use HereYouGo\Model\Constant\Type;
 use HereYouGo\Model\Property;
 use HereYouGo\Model\Updater;
 
+/**
+ * Class Mysql
+ *
+ * @package HereYouGo\Model\Backend
+ */
 class Mysql extends Updater {
     const INT_TYPES = [
         IntSize::INT8 => 'TINYINT',

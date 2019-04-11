@@ -12,6 +12,11 @@ namespace HereYouGo\UI;
 
 use HereYouGo\Exception\BadType;
 
+/**
+ * Class Translation
+ *
+ * @package HereYouGo\UI
+ */
 class Translation {
     /** @var string */
     private $id = '';

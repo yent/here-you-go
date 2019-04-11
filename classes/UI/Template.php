@@ -17,6 +17,9 @@ use HereYouGo\UI\Exception\TemplateNotFound;
  * Class Template
  *
  * @package HereYouGo\UI
+ *
+ * @property-read string $id
+ * @property-read string $path
  */
 class Template {
     /** @var string */

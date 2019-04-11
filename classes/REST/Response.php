@@ -16,6 +16,11 @@ use HereYouGo\REST\Response\JSON;
 use HereYouGo\Converter\JSON as JSONConv;
 use HereYouGo\REST\Response\Post;
 
+/**
+ * Class Response
+ *
+ * @package HereYouGo\REST
+ */
 class Response {
     /** @var string */
     protected static $format = 'json';

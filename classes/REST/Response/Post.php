@@ -13,6 +13,11 @@ namespace HereYouGo\REST\Response;
 use HereYouGo\Config;
 use HereYouGo\HTTP\Response;
 
+/**
+ * Class Post
+ *
+ * @package HereYouGo\REST\Response
+ */
 class Post {
     /** @var string */
     private $location = null;

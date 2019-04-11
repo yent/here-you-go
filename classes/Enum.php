@@ -10,6 +10,8 @@
 namespace HereYouGo;
 
 
+use ReflectionException;
+
 /**
  * Class Enum
  *
@@ -24,7 +26,7 @@ class Enum {
      *
      * @return array
      *
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public static function getValues() {
         if(is_null(static::$values)) {
@@ -41,7 +43,7 @@ class Enum {
      *
      * @return bool
      *
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public static function isValue($value) {
         return in_array($value, static::getValues());

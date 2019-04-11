@@ -13,6 +13,11 @@ use HereYouGo\Exception\BadType;
 use HereYouGo\REST\Exception\BadParameter;
 use HereYouGo\UI\Exception\TemplateNotFound;
 
+/**
+ * Class Router
+ *
+ * @package HereYouGo\REST
+ */
 class Router extends \HereYouGo\Router {
     /**
      * Run routed action

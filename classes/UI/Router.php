@@ -11,6 +11,11 @@ namespace HereYouGo\UI;
 
 use HereYouGo\UI\Exception\TemplateNotFound;
 
+/**
+ * Class Router
+ *
+ * @package HereYouGo\UI
+ */
 class Router extends \HereYouGo\Router {
     /**
      * Run routed action

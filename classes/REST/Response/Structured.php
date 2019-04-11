@@ -13,6 +13,11 @@ namespace HereYouGo\REST\Response;
 use HereYouGo\REST\Exception;
 use HereYouGo\REST\Request;
 
+/**
+ * Class Structured
+ *
+ * @package HereYouGo\REST\Response
+ */
 abstract class Structured extends Base {
     /**
      * Filter out data based on requested fields

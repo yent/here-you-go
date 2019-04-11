@@ -8,7 +8,11 @@
 
 namespace HereYouGo\REST;
 
-
+/**
+ * Class Endpoint
+ *
+ * @package HereYouGo\REST
+ */
 abstract class Endpoint {
     /**
      * Initialize endpoint (register routes ...)

@@ -13,6 +13,11 @@ use HereYouGo\Converter\JSON as JSONConv;
 use HereYouGo\Exception\BadType;
 use HereYouGo\REST\Response;
 
+/**
+ * Class CSV
+ *
+ * @package HereYouGo\REST\Response
+ */
 class CSV extends Structured {
     /**
      * Get returned Mime type

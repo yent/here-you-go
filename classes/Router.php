@@ -18,6 +18,11 @@ use ReflectionException;
 use ReflectionFunction;
 use ReflectionMethod;
 
+/**
+ * Class Router
+ *
+ * @package HereYouGo
+ */
 abstract class Router {
     /** @var array */
     protected static $routes = [];

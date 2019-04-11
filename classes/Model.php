@@ -17,12 +17,13 @@ use ReflectionException;
  *
  * @package HereYouGo
  *
- * @property string $class
- * @property string[] $has
- * @property string[] $relations
- * @property string $table
- * @property Property[] $data_map
- * @property Property[] $columns
+ * @property-read string $class
+ * @property-read string[] $has
+ * @property-read string[] $relations
+ * @property-read string $table
+ * @property-read Property[] $data_map
+ * @property-read Property[] $columns
+ * @property-read Property[] $primary_keys
  */
 class Model {
     /** @var string */
@@ -116,7 +117,7 @@ class Model {
                 foreach($other::model()->getDataMap(false) as $property) {
                     if(!$property->primary) continue;
 
-                    $property = $property->getRelationProperty();
+                    $property = $property->getRelationProperty($other);
                     if(in_array($property->name, $property_names))
                         throw new Broken($this->class, "relation key name {$property->name} is already reserved for another property");
 
@@ -228,6 +229,10 @@ class Model {
             return $this->$name;
 
         if($name === 'data_map') return $this->getDataMap(true);
+
+        if($name === 'primary_keys') return array_filter($this->data_map, function(Property $property) {
+            return $property->primary;
+        });
 
         if($name === 'columns') return $this->getColumns();
 

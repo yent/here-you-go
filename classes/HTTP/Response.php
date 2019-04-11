@@ -9,7 +9,11 @@
 
 namespace HereYouGo\HTTP;
 
-
+/**
+ * Class Response
+ *
+ * @package HereYouGo\HTTP
+ */
 class Response {
     /**
      * Send HTTP response code

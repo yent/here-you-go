@@ -12,6 +12,11 @@ namespace HereYouGo\REST\Response;
 
 use HereYouGo\Exception\BadType;
 
+/**
+ * Class Raw
+ *
+ * @package HereYouGo\REST\Response
+ */
 class Raw extends Base {
     /**
      * Get returned Mime type

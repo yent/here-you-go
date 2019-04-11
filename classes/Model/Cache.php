@@ -8,7 +8,11 @@
 
 namespace HereYouGo\Model;
 
-
+/**
+ * Class Cache
+ *
+ * @package HereYouGo\Model
+ */
 class Cache {
     const ENTITIY = 'entity';
     const RELATION = 'relation';

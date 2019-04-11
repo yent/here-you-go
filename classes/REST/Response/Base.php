@@ -12,6 +12,11 @@ namespace HereYouGo\REST\Response;
 
 use HereYouGo\Exception\UnknownProperty;
 
+/**
+ * Class Base
+ *
+ * @package HereYouGo\REST\Response
+ */
 abstract class Base {
     /** @var string */
     protected $data = null;

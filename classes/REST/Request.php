@@ -18,9 +18,8 @@ use HereYouGo\Sanitizer;
 
 /**
  * Class Request
- * @package HereYouGo\REST
  *
- * @method
+ * @package HereYouGo\REST
  */
 class Request extends \HereYouGo\HTTP\Request {
     /** @var int|null */

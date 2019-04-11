@@ -12,6 +12,11 @@ namespace HereYouGo\UI;
 
 use HereYouGo\Logger;
 
+/**
+ * Class Cache
+ *
+ * @package HereYouGo\UI
+ */
 class Cache {
     /** @var string */
     private $base = '';

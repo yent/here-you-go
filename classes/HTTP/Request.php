@@ -13,6 +13,11 @@ use HereYouGo\Sanitizer;
 use HereYouGo\Converter\XML;
 use HereYouGo\Converter\JSON;
 
+/**
+ * Class Request
+ *
+ * @package HereYouGo\HTTP
+ */
 class Request {
     /** @var bool */
     protected static $parsed = false;

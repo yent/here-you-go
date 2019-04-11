@@ -14,6 +14,11 @@ use HereYouGo\DBI;
 use HereYouGo\Logger;
 use HereYouGo\Model\Exception\Broken;
 
+/**
+ * Class Updater
+ *
+ * @package HereYouGo\Model
+ */
 abstract class Updater {
     /** @var self|null */
     private static $backend = null;

@@ -11,6 +11,13 @@ namespace HereYouGo;
 
 use HereYouGo\Exception\UnknownProperty;
 
+/**
+ * Class Event
+ *
+ * @package HereYouGo
+ *
+ * @property-read string $name
+ */
 class Event {
     const BEFORE = 'before';
     const AFTER = 'after';

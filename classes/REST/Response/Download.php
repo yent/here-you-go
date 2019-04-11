@@ -15,6 +15,11 @@ use HereYouGo\Exception\UnknownProperty;
 use HereYouGo\REST\Request;
 use HereYouGo\REST\Response;
 
+/**
+ * Class Download
+ *
+ * @package HereYouGo\REST\Response
+ */
 class Download {
     /** @var string */
     protected $name = 'file';

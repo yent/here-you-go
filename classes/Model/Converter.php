@@ -9,7 +9,11 @@
 
 namespace HereYouGo\Model;
 
-
+/**
+ * Class Converter
+ *
+ * @package HereYouGo\Model
+ */
 abstract class Converter {
     /**
      * Encode data

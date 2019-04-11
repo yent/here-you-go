@@ -9,13 +9,27 @@
 namespace HereYouGo\Model;
 
 use HereYouGo\DBI;
+use HereYouGo\Exception\BadType;
 use HereYouGo\Model;
 use HereYouGo\Model\Exception\Broken;
 use HereYouGo\Model\Exception\NotFound;
+use ReflectionClass;
+use ReflectionException;
 
+/**
+ * Class Entity
+ *
+ * @package HereYouGo\Model
+ */
 abstract class Entity {
     /** @var Model|null */
     protected static $model = null;
+
+    /** @var array */
+    protected $relation_keys = [];
+
+    /** @var bool */
+    protected $stored_in_database = false;
     
     /**
      * Get model
@@ -39,6 +53,7 @@ abstract class Entity {
      * @throws Broken
      */
     final protected static function checkPk(&$pk) {
+        /** @var string[] $parts */
         $parts = array_filter(array_map(function(Property $property) {
             return $property->primary ? $property->name : null;
         }, static::model()->data_map));
@@ -99,9 +114,12 @@ abstract class Entity {
      * @param Query|string $query
      * @param array $placeholders
      *
-     * @return array|Entity[]|null
+     * @return Entity[]|JoinCollection|null
      *
+     * @throws BadType
      * @throws Broken
+     * @throws NotFound
+     * @throws ReflectionException
      */
     public static function all($query, $placeholders = []) {
         if($query instanceof Query) {
@@ -122,16 +140,19 @@ abstract class Entity {
 
         $joined = (bool)count($query->joins);
 
-        $entities = [];
-        while($row = $statement->fetch()) {
-            $entry = $query->categorizeJoinedData($row);
+        $results = [];
+        while($row = $statement->fetch())
+            $results[] = $query->categorizeData($row);
 
-            if($joined) {
-                // TODO
-            } else {
-                // TODO
-            }
+        if($joined) {
+            $entities = new JoinCollection($query, $results);
+
+            return $entities;
         }
+
+        $entities = array_map(function(ResultSet $result_set) use($query) {
+            return static::fromData($result_set->{$query->scope}->data);
+        }, $results);
 
         Cache::setCollection($query, $entities);
 
@@ -186,25 +207,158 @@ abstract class Entity {
      *
      * @param array $data
      *
-     * @return self
+     * @return static
+     *
+     * @throws Broken
+     * @throws NotFound
+     * @throws BadType
+     * @throws ReflectionException
      */
     public static function fromData(array $data) {
         $entity = static::fromPk($data, false); // ensures that primary key columns are included
+        $properties = static::model()->data_map;
 
         if($entity) {
+            $properties = array_filter($properties, function(Property $property) {
+                return !$property->primary;
+            });
 
         } else {
-
+            $entity = (new ReflectionClass(static::class))->newInstanceWithoutConstructor();
         }
+
+        foreach($properties as $property) {
+            if($property->primary) continue;
+
+            $col = array_key_exists($property->column, $data) ? $property->column : $property->name;
+
+            if(array_key_exists($col, $data)) {
+                $value = $property->castToEntity($data[$col]);
+
+            } else {
+                if(!$property->null)
+                    throw new Broken(static::class, '');
+
+                $value = null;
+            }
+
+            if($property->related_class) {
+                if(!array_key_exists($property->related_class, $entity->relation_keys))
+                    $entity->relation_keys[$property->related_class] = [];
+
+                $entity->relation_keys[$property->related_class][$property->name] = $value;
+
+            } else {
+                $entity->{$property->name} = $value;
+            }
+        }
+
+        return $entity;
     }
 
-    protected function __construct(array $data) {
+    /**
+     * Save entity in database
+     *
+     * @throws BadType
+     * @throws Broken
+     */
+    public function save() {
+        // Check primary keys
+        foreach(static::model()->primary_keys as $property) {
+            if($property->auto_increment) continue;
+            if($this->{$property->name}) continue;
 
+            throw new Broken($this, "missing primary key $property->name value");
+        }
+
+        // Check relations
+        foreach(static::model()->has as $class => $has) {
+            if($has !== Model\Constant\Relation::ONE) continue;
+
+            if(!array_key_exists($class, $this->relation_keys))
+                throw new Broken($this, "needs relation to a $class but has none");
+
+            /** @var Entity $class */
+            foreach($class::model()->primary_keys as $property)
+                if(!array_key_exists($property->name, $this->relation_keys[$class]))
+                    throw new Broken($this, "relation with $class is missing $property->name key");
+        }
+
+        $pks = [];
+        $columns = [];
+        $placeholders = [];
+        foreach(static::model()->data_map as $property) {
+            $name = $property->related_class ? "{$property->related_class}___$property->name" : $property->name;
+            $value = $property->related_class ? $this->relation_keys[$property->related_class][$property->name] : $this->{$property->name};
+
+            if($this->stored_in_database && $property->primary) {
+                $pks[$property->column] = ":$name";
+
+            } else {
+                $columns[$property->column] = ":$name";
+            }
+
+            $placeholders[":$name"] = $property->castToEntity($value);
+        }
+
+        $table = static::model()->table;
+
+        if($this->stored_in_database) {
+            $query = "UPDATE $table SET ".implode(', ', array_map(function($col, $ph) {
+                return "`$col` = $ph";
+            }, array_keys($columns), array_values($columns)))." WHERE ".implode(' AND ', array_map(function($col, $ph) {
+                return "`$col` = $ph";
+            }, array_keys($pks), array_values($pks)));
+
+            $statement = DBI::prepare($query);
+            $statement->execute($placeholders);
+
+        } else {
+            $query = "INSERT INTO $table (`".implode('`, `', array_keys($columns))."`) VALUES(".implode(', ', array_values($columns)).")";
+
+            $statement = DBI::prepare($query);
+            $statement->execute($placeholders);
+
+            // update autoinc pk if any
+            foreach(static::model()->primary_keys as $property)
+                if($property->primary && $property->auto_increment)
+                    $this->{$property->name} = DBI::lastInsertId("{$table}_{$property->column}_seq");
+
+            Cache::dropCollection(static::class);
+
+            $this->stored_in_database = true;
+        }
+
+        Cache::setEntity($this);
     }
 
-    final protected function setProperties(array $data) {
+    /**
+     * Delete entity from database
+     *
+     * @throws BadType
+     * @throws Broken
+     */
+    public function delete() {
+        if(!$this->stored_in_database)
+            return;
 
+        $pks = [];
+        $placeholders = [];
+        foreach(static::model()->primary_keys as $property) {
+            $pks[$property->column] = ":$property->name";
+            $placeholders[":$property->name"] = $property->castToEntity($this->{$property->name});
+        }
+
+        $table = static::model()->table;
+
+        $statement = DBI::prepare("DELETE FROM $table WHERE ".implode(' AND ', array_map(function($col, $ph) {
+            return "`$col` = $ph";
+        }, array_keys($pks), array_values($pks))));
+
+        $statement->execute($placeholders);
+
+        $this->stored_in_database = false;
+
+        Cache::dropEntity($this);
     }
-
-    final protected function get
 }

@@ -13,6 +13,7 @@ use HereYouGo\Exception\BadType;
 use HereYouGo\Model;
 use HereYouGo\Model\Exception\Broken;
 use HereYouGo\Model\Exception\NotFound;
+use HereYouGo\Model\Constant\Relation;
 use ReflectionClass;
 use ReflectionException;
 
@@ -144,11 +145,8 @@ abstract class Entity {
         while($row = $statement->fetch())
             $results[] = $query->categorizeData($row);
 
-        if($joined) {
-            $entities = new JoinCollection($query, $results);
-
-            return $entities;
-        }
+        if($joined)
+            return new JoinCollection($query, $results);
 
         $entities = array_map(function(ResultSet $result_set) use($query) {
             return static::fromData($result_set->{$query->scope}->data);
@@ -167,8 +165,10 @@ abstract class Entity {
      *
      * @return self
      *
+     * @throws BadType
      * @throws Broken
      * @throws NotFound
+     * @throws ReflectionException
      */
     public static function fromPk($pk, $fatal = true) {
         static::checkPk($pk);
@@ -272,7 +272,7 @@ abstract class Entity {
         }
 
         // Check relations
-        foreach(static::model()->has as $class => $has) {
+        foreach(static::model()->relations as $class => $has) {
             if($has !== Model\Constant\Relation::ONE) continue;
 
             if(!array_key_exists($class, $this->relation_keys))
@@ -360,5 +360,96 @@ abstract class Entity {
         $this->stored_in_database = false;
 
         Cache::dropEntity($this);
+    }
+
+    /**
+     * Get related entity/entities
+     *
+     * @param string $other
+     *
+     * @return Entity|Entity[]
+     *
+     * @throws BadType
+     * @throws Broken
+     * @throws NotFound
+     * @throws ReflectionException
+     */
+    public function getRelated($other) {
+        /** @var Entity $other */
+        if(!array_key_exists($other, static::model()->relations))
+            throw new Broken($this, "has no relation with $other");
+
+        if(!array_key_exists(static::class, $other::model()->relations))
+            throw new Broken($this, "has no relation with $other");
+
+        $this_to_other_relation = static::model()->relations[$other];
+        $other_to_this_relation = $other::model()->relations[static::class];
+
+        if($this_to_other_relation === Relation::ONE && $other_to_this_relation === Relation::ONE)
+            throw new Broken($this, "cannot have one to one relation with $other");
+
+        $cache = Cache::getRelation($this, $other);
+        if($cache)
+            return ($this_to_other_relation === Relation::MANY) ? $cache : reset($cache);
+
+        if($this_to_other_relation === Relation::ONE) {
+            // this has one other, other has many this => this has the relation keys
+
+            $other = $other::fromPk($this->relation_keys[$other]);
+            Cache::setRelation($this, $other);
+
+            return $other;
+        }
+
+        if($other_to_this_relation === Relation::ONE) {
+            // this has many others, other has one this => other has the relation keys
+
+            $criteria = [];
+            $placeholders = [];
+            foreach(static::model()->primary_keys as $property) {
+                $value = $this->{$property->name}; // do this before name changes
+                $property = $property->getRelationProperty($other);
+                $criteria[] = "$property->name = :$property->name";
+                $placeholders[":$property->name"] = $value;
+            }
+
+            $criteria = implode(' AND ', $criteria);
+
+            $others = $other::all(new Query($other, $criteria, $placeholders));
+
+        } else {
+            // this has many others, other has many this => there is a relation table
+            $relation_table = static::model()->getRelationTableWith($other);
+            $other_table = $other::model()->table;
+
+            $criteria = [];
+            $placeholders = [];
+            foreach(static::model()->primary_keys as $property) {
+                $value = $this->{$property->name}; // do this before name changes
+                $property = $property->getRelationProperty($other);
+                $criteria[] = "$relation_table.$property->column = :$property->name";
+                $placeholders[":$property->name"] = $value;
+            }
+
+            $on = [];
+            foreach($other::model()->primary_keys as $property) {
+                $relation_property = $property->getRelationProperty(static::class);
+                $on[] = "$other_table.$property->column = $relation_table.$relation_property->column";
+            }
+
+            $on = implode(' AND ', $on);
+
+            $statement = DBI::prepare("SELECT $other_table.* FROM $relation_table JOIN $other_table ON ($on) WHERE $criteria");
+            $statement->execute($placeholders);
+
+            $others = [];
+            foreach($statement->fetchAll() as $row)
+                $others[] = $other::fromData($row);
+        }
+
+        foreach($others as $other)
+            Cache::setRelation($this, $other);
+
+        return $others;
     }
 }

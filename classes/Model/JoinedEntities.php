@@ -3,8 +3,16 @@
 
 namespace HereYouGo\Model;
 
+use HereYouGo\Exception\BadType;
+use Iterator;
+use ReflectionException;
 
-class JoinedEntities {
+/**
+ * Class JoinedEntities
+ *
+ * @package HereYouGo\Model
+ */
+class JoinedEntities implements Iterator {
     /** @var Entity[] */
     private $entities = [];
 
@@ -17,11 +25,22 @@ class JoinedEntities {
     /**
      * JoinedEntities constructor.
      *
-     * @param ResultSet[] $results
+     * @param Query $query
+     * @param ResultSet[] $result_sets
+     *
+     * @throws Exception\Broken
+     * @throws Exception\NotFound
+     * @throws BadType
+     * @throws ReflectionException
      */
-    public function __construct(array $results) {
-        foreach($results as $result_set) {
-            
+    public function __construct(Query $query, array $result_sets) {
+        $result_set_by_entity = [];
+        foreach($result_sets as $result_set)
+            $result_set_by_entity[$result_set->{$query->scope}->uid][] = $result_set;
+
+        foreach($result_set_by_entity as $result_sets) {
+            $this->entities[] = reset($result_sets)->{$query->scope}->getEntity();
+            $this->joins = new JoinCollection($query, $result_sets);
         }
     }
 

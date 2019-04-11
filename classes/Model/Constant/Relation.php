@@ -12,6 +12,11 @@ namespace HereYouGo\Model\Constant;
 
 use HereYouGo\Enum;
 
+/**
+ * Class Relation
+ *
+ * @package HereYouGo\Model\Constant
+ */
 class Relation extends Enum {
     const ONE   = 'one';
     const MANY  = 'many';

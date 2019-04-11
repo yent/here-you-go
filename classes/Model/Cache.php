@@ -133,6 +133,8 @@ class Cache {
      * Cache entity
      *
      * @param Entity $entity
+     *
+     * @throws Exception\Broken
      */
     public static function setEntity(Entity $entity) {
         self::set([self::ENTITIY, get_class($entity), $entity->getCacheKey()], $entity);
@@ -142,6 +144,8 @@ class Cache {
      * Drop entity / class from cache
      *
      * @param Entity|string $entity
+     *
+     * @throws Exception\Broken
      */
     public static function dropEntity($entity) {
         if($entity === '*') {
@@ -175,6 +179,8 @@ class Cache {
      * @param Entity|string $other
      *
      * @return Entity[]|bool|null
+     *
+     * @throws Exception\Broken
      */
     public static function getRelation(Entity $entity, $other) {
         $path = [self::RELATION, get_class($entity), $entity->getCacheKey()];
@@ -206,6 +212,8 @@ class Cache {
      * @param Entity|string $other
      *
      * @return array[]
+     *
+     * @throws Exception\Broken
      */
     protected static function relationPaths($thing, $other) {
         $paths = [];
@@ -266,6 +274,8 @@ class Cache {
      *
      * @param Entity $entity
      * @param Entity $other
+     *
+     * @throws Exception\Broken
      */
     public static function setRelation(Entity $entity, Entity $other) {
         foreach(self::relationPaths($entity, $other) as $path)
@@ -277,6 +287,8 @@ class Cache {
      *
      * @param $entity
      * @param null $other
+     *
+     * @throws Exception\Broken
      */
     public static function dropRelation($entity, $other = null) {
         if($entity === '*') {

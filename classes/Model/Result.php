@@ -16,6 +16,7 @@ use ReflectionException;
  * @property-read Query|null $query
  * @property-read array $data
  * @property-read Entity|null $entity
+ * @property-read string $uid
  */
 class Result {
     /** @var Query|null */
@@ -36,6 +37,8 @@ class Result {
     public function __construct(Query $query, array $data) {
         $this->query = $query;
         $this->data = $data;
+
+        ksort($this->data);
     }
 
     /**
@@ -77,6 +80,9 @@ class Result {
 
         if($name === 'entity')
             return $this->getEntity();
+
+        if($name === 'uid')
+            return serialize($this->data);
 
         throw new UnknownProperty($this, $name);
     }

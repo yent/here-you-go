@@ -18,7 +18,6 @@ use ReflectionException;
  * @package HereYouGo
  *
  * @property-read string $class
- * @property-read string[] $has
  * @property-read string[] $relations
  * @property-read string $table
  * @property-read Property[] $data_map
@@ -30,7 +29,7 @@ class Model {
     private $class = '';
 
     /** @var array */
-    private $has = [];
+    private $relations = [];
 
     /** @var Property[][] */
     private $properties = ['own' => [], 'extension' => null, 'relation' => null];
@@ -59,13 +58,13 @@ class Model {
                 if(!preg_match('`^\s+(?:\*\s+)?@([^\s]+)\s+(.+)$`', $line, $match)) continue;
 
                 if($match[1] === 'has') {
-                    if(!preg_match('`^(one|many)\s+(.+)$`', $match[2], $has))
+                    if(!preg_match('`^(one|many)\s+(.+)$`', $match[2], $relation))
                         throw new Broken($class, 'malformed @has');
 
-                    if(!class_exists($has[2]))
-                        throw new Broken($class, "related class {$has[2]} does not exist");
+                    if(!class_exists($relation[2]))
+                        throw new Broken($class, "related class {$relation[2]} does not exist");
 
-                    $this->has[$has[2]] = $has[1];
+                    $this->relations[$relation[2]] = $relation[1];
 
                 } else if($match[1] === 'table') {
                     $this->table = $match[2];
@@ -102,7 +101,7 @@ class Model {
         $property_names = array_keys($this->properties['own']);
 
         if($with_relations && is_null($this->properties['relation'])) {
-            foreach($this->getRelations() as $other => $relation) {
+            foreach($this->relations as $other => $relation) {
                 try {
                     if(!Relation::isValue($relation))
                         throw new Broken($this->class, "unknown relation type with $other");
@@ -182,36 +181,20 @@ class Model {
     }
 
     /**
-     * Get relations with other entities
+     * Build relation table name
      *
-     * @return string[]
-     */
-    public function getRelations() {
-        return $this->has;
-    }
-
-    /**
-     * Get table name
+     * @param string $other
      *
      * @return string
-     */
-    public function getTable() {
-        return $this->table;
-    }
-
-    /**
-     * Get properties by database column name
-     *
-     * @return Property[]
      *
      * @throws Broken
      */
-    public function getColumns() {
-        $columns = [];
-        foreach($this->getDataMap(true) as $property)
-            $columns[$property->column] = $property;
+    public function getRelationTableWith($other) {
+        /** @var Entity $other */
+        $tables = [$this->table, $other::model()->table];
+        sort($tables);
 
-        return $columns;
+        return implode('', $tables);
     }
 
     /**
@@ -225,7 +208,7 @@ class Model {
      * @throws UnknownProperty
      */
     public function __get($name) {
-        if(in_array($name, ['class', 'has', 'table']))
+        if(in_array($name, ['class', 'relations', 'table']))
             return $this->$name;
 
         if($name === 'data_map') return $this->getDataMap(true);
@@ -234,9 +217,13 @@ class Model {
             return $property->primary;
         });
 
-        if($name === 'columns') return $this->getColumns();
+        if($name === 'columns') {
+            $columns = [];
+            foreach($this->getDataMap(true) as $property)
+                $columns[$property->column] = $property;
 
-        if($name === 'relations') return $this->has;
+            return $columns;
+        }
 
         throw new UnknownProperty($this, $name);
     }

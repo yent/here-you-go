@@ -12,6 +12,7 @@ namespace HereYouGo\Model;
 use HereYouGo\Config;
 use HereYouGo\DBI;
 use HereYouGo\Logger;
+use HereYouGo\Model\Constant\Relation;
 use HereYouGo\Model\Exception\Broken;
 
 /**
@@ -37,14 +38,32 @@ abstract class Updater {
         if(!class_exists(self::$backend))
             throw new Broken(self::$backend, 'unknown backend type');
 
-        foreach(self::entities() as $entity)
-            self::check($entity);
+        $many_to_many = [];
+
+        foreach(self::entities() as $class) {
+            self::check($class);
+
+            /** @var Entity $class */
+            foreach($class::model()->relations as $other => $relation) {
+                /** @var Entity $other */
+                if($relation !== Relation::MANY) continue;
+                if($other::model()->relations[$class] !== Relation::MANY) continue;
+
+                $id = [$class, $other];
+                sort($id);
+
+                $many_to_many[implode('', $id)] = $id;
+            }
+        }
+
+        foreach($many_to_many as $classes)
+            self::checkrelationTable($classes);
     }
 
     /**
      * List known entities
      *
-     * @return array
+     * @return string[]
      */
     private static function entities() {
         $dir = dirname(__FILE__).'/Entity/';
@@ -74,24 +93,59 @@ abstract class Updater {
     private static function check($class) {
         Logger::info("checking $class class");
     
-        $backend = self::$backend;
-        
         /** @var Entity $class */
         $table = $class::model()->table;
         $map = $class::model()->data_map;
-        
+
+        self::checkTable($table, $map);
+    }
+
+    /**
+     * check relation table
+     *
+     * @param Entity[] $classes
+     *
+     * @throws Broken
+     */
+    private static function checkRelationTable(array $classes) {
+        $classes = array_values($classes);
+
+        Logger::info("checking relation table for $classes[0] and $classes[1]");
+
+        $table = $classes[0]::model()->getRelationTableWith($classes[1]);
+
+        $map = [];
+        foreach($classes[0]::model()->primary_keys as $property) {
+            $property = $property->getRelationProperty($classes[1]);
+            $map[$property->name] = $property;
+        }
+        foreach($classes[1]::model()->primary_keys as $property) {
+            $property = $property->getRelationProperty($classes[0]);
+            $map[$property->name] = $property;
+        }
+
+        self::checkTable($table, $map);
+    }
+
+    /**
+     * Check table against map
+     *
+     * @param string $table
+     * @param Property[] $map
+     */
+    private static function checkTable($table, $map) {
         if(self::$backend::tableExists($table)) {
             foreach($map as $property => $definition) {
                 Logger::info("checking {$definition->column} column in $table table");
-                $backend::checkColumn($table, $definition);
+                self::$backend::checkColumn($table, $definition);
             }
 
             Logger::info("checking constraints in $table table");
-            $backend::checkConstraints($table, $map);
+            self::$backend::checkConstraints($table, $map);
 
         } else {
             Logger::info("$table table is missing, creating it");
-            $backend::createTable($table, $map);
+            self::$backend::createTable($table, $map);
         }
     }
     

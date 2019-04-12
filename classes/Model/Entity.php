@@ -10,6 +10,7 @@ namespace HereYouGo\Model;
 
 use HereYouGo\DBI;
 use HereYouGo\Exception\BadType;
+use HereYouGo\Exception\UnknownProperty;
 use HereYouGo\Model;
 use HereYouGo\Model\Exception\Broken;
 use HereYouGo\Model\Exception\NotFound;
@@ -59,20 +60,50 @@ abstract class Entity {
             return $property->primary ? $property->name : null;
         }, static::model()->data_map));
 
-        sort($parts);
-
         if(!is_array($pk)) {
             if(count($parts) > 1)
                 throw new Broken(static::class, 'entity has multi-properties primary key but single part was provided');
 
-            $pk[$parts[0]] = $pk;
+            $pk[reset($parts)] = $pk;
         }
 
-        foreach($parts as $part)
+        foreach($parts as $part) {
             if(!array_key_exists($part, $pk))
                 throw new Broken(static::class, "primary key part $pk is missing");
 
-        sort($pk);
+            if(!$pk[$part])
+                throw new Broken(static::class, "primary key part $pk is empty");
+        }
+
+        // keep only pk parts
+        $pk = array_intersect_key($pk, array_fill_keys($parts, true));
+
+        ksort($pk);
+    }
+
+    /**
+     * Get primary key components
+     *
+     * @param bool $as_string
+     *
+     * @return array|string
+     *
+     * @throws Broken
+     */
+    final public function getPk($as_string = false) {
+        $parts = array_filter(array_map(function(Property $property) {
+            return $property->primary ? $property->name : null;
+        }, static::model()->data_map));
+
+        $pk = [];
+        foreach($parts as $name)
+            $pk[$name] = $this->$name;
+
+        static::checkPk($pk);
+
+        return $as_string ? implode(',', array_map(function($k, $v) {
+            return "$k=$v";
+        }, array_keys($pk), array_values($pk))) : $pk;
     }
 
     /**
@@ -83,15 +114,7 @@ abstract class Entity {
      * @throws Broken
      */
     final public function getCacheKey() {
-        $parts = array_filter(array_map(function(Property $property) {
-            return $property->primary ? $property->name : null;
-        }, static::model()->data_map));
-
-        $pk = [];
-        foreach($parts as $name)
-            $pk[$name] = $this->$name;
-
-        return static::buildCacheKey($pk);
+        return $this->getPk(true);
     }
 
     /**
@@ -106,7 +129,9 @@ abstract class Entity {
     final public static function buildCacheKey($pk) {
         static::checkPk($pk);
 
-        return base64_encode(serialize($pk));
+        return implode(',', array_map(function($k, $v) {
+            return "$k=$v";
+        }, array_keys($pk), array_values($pk)));
     }
 
     /**
@@ -122,14 +147,14 @@ abstract class Entity {
      * @throws NotFound
      * @throws ReflectionException
      */
-    public static function all($query, $placeholders = []) {
+    public static function all($query = '', $placeholders = []) {
         if($query instanceof Query) {
             $class = static::class;
             if($query->class !== static::class)
                 throw new Broken($query, "asking $class to fetch instances of $query->class");
 
         } else {
-            $query = new Query(static::class, $query, $placeholders);
+            $query = new Query(static::class, (string)$query, $placeholders);
         }
 
         $cached = Cache::getCollection($query);
@@ -215,7 +240,7 @@ abstract class Entity {
      * @throws ReflectionException
      */
     public static function fromData(array $data) {
-        $entity = static::fromPk($data, false); // ensures that primary key columns are included
+        $entity = static::fromPk($data, false); // also ensures that primary key columns are included
         $properties = static::model()->data_map;
 
         if($entity) {
@@ -274,9 +299,9 @@ abstract class Entity {
         // Check relations
         foreach(static::model()->relations as $class => $has) {
             if($has !== Model\Constant\Relation::ONE) continue;
+            if(!array_key_exists($class, $this->relation_keys)) continue;
 
-            if(!array_key_exists($class, $this->relation_keys))
-                throw new Broken($this, "needs relation to a $class but has none");
+            // if there is a related class keys should be set
 
             /** @var Entity $class */
             foreach($class::model()->primary_keys as $property)
@@ -375,25 +400,20 @@ abstract class Entity {
      * @throws ReflectionException
      */
     public function getRelated($other) {
-        /** @var Entity $other */
-        if(!array_key_exists($other, static::model()->relations))
+        /** @var Entity|string $other */
+        $relation = static::model()->getRelationWith($other);
+        if(!$relation)
             throw new Broken($this, "has no relation with $other");
-
-        if(!array_key_exists(static::class, $other::model()->relations))
-            throw new Broken($this, "has no relation with $other");
-
-        $this_to_other_relation = static::model()->relations[$other];
-        $other_to_this_relation = $other::model()->relations[static::class];
-
-        if($this_to_other_relation === Relation::ONE && $other_to_this_relation === Relation::ONE)
-            throw new Broken($this, "cannot have one to one relation with $other");
 
         $cache = Cache::getRelation($this, $other);
         if($cache)
-            return ($this_to_other_relation === Relation::MANY) ? $cache : reset($cache);
+            return in_array($relation, [Relation::MANY_TO_ONE, Relation::MANY_TO_MANY]) ? $cache : reset($cache);
 
-        if($this_to_other_relation === Relation::ONE) {
+        if($relation === Relation::ONE_TO_MANY) {
             // this has one other, other has many this => this has the relation keys
+
+            if(!array_key_exists($other, $this->relation_keys))
+                return null;
 
             $other = $other::fromPk($this->relation_keys[$other]);
             Cache::setRelation($this, $other);
@@ -401,7 +421,7 @@ abstract class Entity {
             return $other;
         }
 
-        if($other_to_this_relation === Relation::ONE) {
+        if($relation === Relation::MANY_TO_ONE) {
             // this has many others, other has one this => other has the relation keys
 
             $criteria = [];
@@ -451,5 +471,283 @@ abstract class Entity {
             Cache::setRelation($this, $other);
 
         return $others;
+    }
+
+    /**
+     * Set related entities
+     *
+     * @param Entity|Entity[] $other
+     *
+     * @throws BadType
+     * @throws Broken
+     * @throws NotFound
+     * @throws ReflectionException
+     */
+    public function setRelated($other) {
+        if(!is_array($other)) $other = [$other];
+
+        $other_by_class = [];
+        foreach($other as $o)
+            $other_by_class[get_class($o)][] = $o;
+
+        if(count($other_by_class) > 1) {
+            foreach($other_by_class as $others)
+                $this->setRelated($others);
+
+            return;
+        }
+
+        $others = reset($other_by_class);
+
+        /** @var Entity|string $other_class */
+        $other_class = key($other_by_class);
+
+        $relation = static::model()->getRelationWith($other_class);
+        if(!$relation)
+            throw new Broken($this, "has no relation with $other_class");
+
+        if($relation === Relation::ONE_TO_MANY) {
+            // this has one other, other has many this => this has the relation keys
+
+            if(count($others) > 1)
+                throw new Broken($this, "cannot be related to more than one $other_class");
+
+            $other = array_shift($others);
+            foreach($other_class::model()->primary_keys as $property) {
+                $value = $other->{$property->name};
+                $key = $property->getRelationProperty(static::class)->name;
+                $this->relation_keys[$other_class][$key] = $value;
+            }
+
+            Cache::dropRelation($this, $other_class);
+            Cache::setRelation($this, $other);
+
+            return;
+        }
+
+        if($relation === Relation::MANY_TO_ONE) {
+            // this has many others, other has one this => other has the relation keys
+
+            foreach($others as $other)
+                $other->setRelated($this);
+
+            return;
+
+        } else {
+            // this has many others, other has many this => there is a relation table
+            $exists = array_map(function(Entity $other) {
+                return $other->getPk(true);
+            }, $this->getRelated($other_class));
+
+            // ignore already related others
+            $others = array_filter($others, function(Entity $other) use($exists) {
+                return !in_array($other->getPk(true), $exists);
+            });
+
+            $relation_table = static::model()->getRelationTableWith($other);
+
+            $this_keys = [];
+            $this_placeholders = [];
+
+            foreach(static::model()->primary_keys as $property) {
+                $value = $this->{$property->name};
+                $property = $property->getRelationProperty($other_class);
+                $this_keys[$property->column] = ":$property->name";
+                $this_placeholders[":$property->name"] = $value;
+            }
+
+            foreach($others as $other) {
+                $other_keys = [];
+                $other_placeholders = [];
+
+                foreach($other_class::model()->primary_keys as $property) {
+                    $value = $other->{$property->name};
+                    $property = $property->getRelationProperty(static::class);
+                    $other_keys[$property->column] = ":$property->name";
+                    $other_placeholders[":$property->name"] = $value;
+                }
+
+                $keys = array_merge($this_keys, $other_keys);
+                $placeholders = array_merge($this_placeholders, $other_placeholders);
+
+                $statement = DBI::prepare("INSERT INTO $relation_table (`".implode('`, `', array_keys($keys))."`) VALUES(".implode(', ', array_values($keys)).")");
+                $statement->execute($placeholders);
+
+                Cache::setRelation($this, $other);
+            }
+        }
+    }
+
+    /**
+     * Drop relation
+     *
+     * @param Entity[]|Entity|string $other
+     *
+     * @throws BadType
+     * @throws Broken
+     * @throws NotFound
+     * @throws ReflectionException
+     */
+    public function dropRelated($other) {
+        if(!is_array($other)) $other = [$other];
+
+        $other_by_class = [];
+        foreach($other as $o) {
+            if($o instanceof Entity) {
+                $other_by_class[get_class($o)][] = $o;
+
+            } else {
+                $other_by_class[$o] = $o;
+            }
+        }
+
+        if(count($other_by_class) > 1) {
+            foreach($other_by_class as $others)
+                $this->dropRelated($others);
+
+            return;
+        }
+
+        $others = reset($other_by_class);
+
+        /** @var Entity|string $other_class */
+        $other_class = key($other_by_class);
+
+        $relation = static::model()->getRelationWith($other_class);
+        if(!$relation)
+            throw new Broken($this, "has no relation with $other_class");
+
+        if($relation === Relation::ONE_TO_MANY) {
+            // this has one other, other has many this => this has the relation keys
+
+            if(is_array($others) && count($others) > 1)
+                throw new Broken($this, "cannot be related to more than one $other_class");
+
+            unset($this->relation_keys[$other_class]);
+
+            Cache::dropRelation($this, $other_class);
+
+            return;
+        }
+
+        if($relation === Relation::MANY_TO_ONE) {
+            // this has many others, other has one this => other has the relation keys
+
+            if(!is_array($others))
+                $others = $other_class::all();
+
+            foreach($others as $other)
+                    $other->dropRelated($this);
+
+            return;
+
+        } else {
+            // this has many others, other has many this => there is a relation table
+
+            $relation_table = static::model()->getRelationTableWith($other);
+
+            $this_where = [];
+            $this_placeholders = [];
+
+            foreach(static::model()->primary_keys as $property) {
+                $value = $this->{$property->name};
+                $property = $property->getRelationProperty($other_class);
+                $this_where[] = "`$property->column` = :$property->name";
+                $this_placeholders[":$property->name"] = $value;
+            }
+
+            if(!is_array($others)) {
+                $statement = DBI::prepare("DELETE FROM $relation_table WHERE ".implode(' AND ', $this_where));
+                $statement->execute($this_placeholders);
+
+                Cache::dropRelation($this, $other_class);
+
+                return;
+            }
+
+            foreach($others as $other) {
+                $other_where = [];
+                $other_placeholders = [];
+
+                foreach($other_class::model()->primary_keys as $property) {
+                    $value = $other->{$property->name};
+                    $property = $property->getRelationProperty(static::class);
+                    $other_where[] = "`$property->column` = :$property->name";
+                    $other_placeholders[":$property->name"] = $value;
+                }
+
+                $where = array_merge($this_where, $other_where);
+                $placeholders = array_merge($this_placeholders, $other_placeholders);
+
+                $statement = DBI::prepare("DELETE FROM $relation_table WHERE ".implode(' AND ', $where));
+                $statement->execute($placeholders);
+
+                Cache::dropRelation($this, $other);
+            }
+        }
+    }
+
+    /**
+     * Getter
+     *
+     * @param string $name
+     *
+     * @return Entity|Entity[]
+     *
+     * @throws BadType
+     * @throws Broken
+     * @throws NotFound
+     * @throws ReflectionException
+     * @throws UnknownProperty
+     */
+    public function __get($name) {
+        if(preg_match('`^[A-Z]`', $name))
+            return $this->getRelated($name);
+
+        throw new UnknownProperty($this, $name);
+    }
+
+    /**
+     * Setter
+     *
+     * @param string $name
+     * @param mixed $value
+     *
+     * @throws BadType
+     * @throws Broken
+     * @throws NotFound
+     * @throws ReflectionException
+     * @throws UnknownProperty
+     */
+    public function __set($name, $value) {
+        if(preg_match('`^[A-Z]`', $name)) {
+            if($value) {
+                if(!is_array($value)) $value = [$value];
+
+                foreach($value as $other)
+                    if(!($other instanceof $name))
+                        throw new Broken($this, "$other is not an instance of $name");
+
+                $this->setRelated($value);
+
+            } else {
+                $this->dropRelated($name);
+            }
+
+            return;
+        }
+
+        throw new UnknownProperty($this, $name);
+    }
+
+    /**
+     * Stringifier
+     *
+     * @return string
+     *
+     * @throws Broken
+     */
+    public function __toString() {
+        return get_class($this).'#'.$this->getPk(true);
     }
 }

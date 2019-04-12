@@ -264,9 +264,6 @@ class Property {
      * @throws Broken
      */
     public function getRelationProperty($other_class) {
-        if($this->null)
-            throw new Broken("{$this->class}->{$this->name}", 'cannot use nullable property as relation key');
-        
         $clone = clone $this; // IMPORTANT
         $clone->makeRelationProperty($other_class);
 
@@ -282,7 +279,7 @@ class Property {
         $this->name = $this->class.'_'.$this->name;
         $this->column = $this->class.'_'.$this->column;
 
-        $this->null = false;
+        $this->null = true; // relation is always optional, it is up to the class to check if mandatory
         $this->default = false;
         $this->primary = false;
         $this->auto_increment = false;

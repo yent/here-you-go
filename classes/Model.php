@@ -5,6 +5,7 @@ namespace HereYouGo;
 
 
 use HereYouGo\Exception\UnknownProperty;
+use HereYouGo\Model\Cache;
 use HereYouGo\Model\Constant\Relation;
 use HereYouGo\Model\Entity;
 use HereYouGo\Model\Exception\Broken;
@@ -58,7 +59,7 @@ class Model {
                 if(!preg_match('`^\s+(?:\*\s+)?@([^\s]+)\s+(.+)$`', $line, $match)) continue;
 
                 if($match[1] === 'has') {
-                    if(!preg_match('`^(one|many)\s+(.+)$`', $match[2], $relation))
+                    if(!preg_match('`^('.Relation::ONE.'|'.Relation::MANY.')\s+(.+)$`', $match[2], $relation))
                         throw new Broken($class, 'malformed @has');
 
                     if(!class_exists($relation[2]))
@@ -178,6 +179,49 @@ class Model {
             $properties = array_merge($properties, $this->properties['relation']);
 
         return $properties;
+    }
+
+    /**
+     * Get relation type
+     *
+     * @param string $other
+     *
+     * @return string|null
+     *
+     * @throws Broken
+     */
+    public function getRelationWith($other) {
+        /** @var Entity $other */
+        $other = $other::model();
+
+        /** @var Model $other */
+        if(!array_key_exists($other->class, $this->relations) && !array_key_exists($this->class, $other->relations))
+            return null;
+
+        if(!array_key_exists($other->class, $this->relations))
+            throw new Broken($this->class, "has no relation with $other->class");
+
+        if(!array_key_exists($this->class, $other->relations))
+            throw new Broken($other->class, "has no relation with $this->class");
+
+        $this_to_other = $this->relations[$other->class];
+        $other_to_this = $other->relations[$this->class];
+
+        if($this_to_other === Relation::ONE && $other_to_this === Relation::ONE)
+            throw new Broken($this->class, "cannot have one to one relation with $other->class");
+
+        if($this_to_other === Relation::ONE) {
+            // this has one other, other has many this => this has the relation keys
+            return Relation::ONE_TO_MANY;
+        }
+
+        if($other_to_this === Relation::ONE) {
+            // this has many others, other has one this => other has the relation keys
+            return Relation::MANY_TO_ONE;
+        }
+
+        // this has many others, other has many this => there is a relation table
+        return Relation::MANY_TO_MANY;
     }
 
     /**

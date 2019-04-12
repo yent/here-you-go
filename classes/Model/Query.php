@@ -320,7 +320,7 @@ class Query {
             return $this->joined_to ? $this->joined_to->table_alias.'t'.array_search($this, $this->joined_to->joins) : '';
 
         if($name === 'cache_key')
-            return md5(serialize($this));
+            return base64_encode(serialize($this));
 
         throw new UnknownProperty($this, $name);
     }

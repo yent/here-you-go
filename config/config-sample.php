@@ -18,6 +18,7 @@ $conf['db'] = [
 $conf['available_locales'] = ['en' => 'English'];
 
 $conf['base_url'] = 'https://'.$_SERVER['SERVER_NAME'].'/';
+$conf['nice_urls'] = true;
 
 $conf['lang'] = [
     'default' => 'en',
@@ -28,7 +29,6 @@ $conf['lang'] = [
 ];
 
 $conf['auth'] = [
-    'attributes' => ['id', 'emails', 'name'],
     'sp' => [
         'type' => false,
         // further sp config
@@ -53,3 +53,5 @@ $conf['auth'] = [
         ],
     ],
 ];
+
+$conf['admin'] = ['foo@bar.tld'];

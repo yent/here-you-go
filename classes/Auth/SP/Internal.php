@@ -3,6 +3,13 @@
 namespace HereYouGo\Auth\SP;
 
 use HereYouGo\Auth;
+use HereYouGo\Exception\BadType;
+use HereYouGo\Model\Entity\User;
+use HereYouGo\Model\Exception\Broken;
+use HereYouGo\Model\Exception\NotFound;
+use HereYouGo\UI;
+use ReflectionException;
+use HereYouGo\Auth\SP\Internal\States;
 
 /**
  * Class Internal
@@ -31,20 +38,59 @@ class Internal extends Auth {
     /**
      * Trigger login process (if any)
      *
-     * @param string $target
+     * @throws UI\Exception\TemplateNotFound
+     * @throws BadType
+     * @throws Broken
+     * @throws ReflectionException
      */
-    public static function doLogin($target) {
-        // TODO redirect to /login?target=base64_encode($target)
+    public static function doLogin() {
+        $target = array_key_exists('target', $_REQUEST) ? base64_decode($_REQUEST['target']) : '';
+
+        if(array_key_exists('user', $_SESSION))
+            UI::redirect($target);
+
+        $template = UI\Template::resolve('internal-login');
+
+        if(array_key_exists('login', $_POST)) { // Got credentials
+            $login = $_POST['login'];
+            $password = array_key_exists('password', $_POST) ? $_POST['password'] : '';
+
+            if($login && $password) {
+                try {
+                    /** @var User $user */
+                    $user = User::fromPk($login);
+
+                    if(Auth\Password::verify($password, $user->auth_args)) {
+                        $_SESSION['user'] = ['id' => $user->id, 'email' => $user->email, 'name' => $user->name];
+
+                        // got user, goto target
+                        UI::redirect($target);
+                    }
+                } catch(NotFound $e) {}
+
+                // still here ? then display login template with unknown login/password message
+                $template->display(['target' => $target, 'state' => States::UNKNOWN_USER]);
+
+            } else {
+                // display login template with missing credentials message
+                $template->display(['target' => $target, 'state' => States::MISSING_CREDENTIAL]);
+            }
+        }
+
+        // display login template
+        $template->display(['target' => $target, 'state' => States::NONE]);
     }
 
     /**
      * Trigger logout process (if any)
      *
-     * @param string $target
+     * @return string
+     *
+     * @throws UI\Exception\TemplateNotFound
      */
-    public static function doLogout($target) {
-        unset($_SESSION);
+    public static function doLogout() {
+        unset($_SESSION['user']);
 
-        // TODO redirect to $target
+        UI\Template::resolve('logged-out')->display(); // display template
     }
 }

@@ -43,9 +43,9 @@ abstract class Profile {
      *
      * @throws ReflectionException
      */
-    public static function isSatifiedBy(User $user) {
+    public static function isSatisfiedBy(User $user) {
         foreach(static::getDependencies() as $dependency)
-            if(!$dependency::isSatifiedBy($user))
+            if(!$dependency::isSatisfiedBy($user))
                 return false;
 
         return static::check($user);

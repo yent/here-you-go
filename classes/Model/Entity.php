@@ -101,9 +101,15 @@ abstract class Entity {
 
         static::checkPk($pk);
 
-        return $as_string ? implode(',', array_map(function($k, $v) {
+        if(!$as_string)
+            return $pk;
+
+        if(count($pk) === 1)
+            return (string)reset($pk);
+
+        return implode(',', array_map(function($k, $v) {
             return "$k=$v";
-        }, array_keys($pk), array_values($pk))) : $pk;
+        }, array_keys($pk), array_values($pk)));
     }
 
     /**
@@ -685,6 +691,19 @@ abstract class Entity {
                 Cache::dropRelation($this, $other);
             }
         }
+    }
+
+    /**
+     * Check if same as other
+     *
+     * @param Entity $other
+     *
+     * @return bool
+     *
+     * @throws Broken
+     */
+    public function is(Entity $other) {
+        return $this->getPk(true) === $other->getPk(true);
     }
 
     /**

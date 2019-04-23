@@ -96,11 +96,15 @@ class Template {
         include $this->path;
         
         $res = ob_get_clean();
-        
+
         $res = preg_replace_callback('`\{tr(?:anslate)?:([^\}]+)\}`', function($match) {
             return Locale::translate($match[1]);
         }, $res);
-        
+
+        $res = preg_replace_callback('`\{url:([^\}]+)\}`', function($match) {
+            return Config::get('base_url').$match[1];
+        }, $res);
+
         // TODO conditions and stuff
         
         return $res;

@@ -127,8 +127,15 @@ class Request {
             self::$method = strtolower($_SERVER[$k]);
         }
 
-        if(array_key_exists('PATH_INFO', $_SERVER))
-            self::$path = '/'.trim(preg_replace('`/\s*/`', '', $_SERVER['PATH_INFO']), '/');
+        if(Config::get('nice_urls')) {
+            if(array_key_exists('PATH_INFO', $_SERVER))
+                self::$path = $_SERVER['PATH_INFO'];
+
+        } else if(array_key_exists('path', $_REQUEST)) {
+            self::$path = $_REQUEST['path'];
+        }
+
+        self::$path = '/'.trim(preg_replace('`/\s*/`', '/', self::$path), '/');
 
         $type = 'application/binary';
         foreach (array('HTTP_CONTENT_TYPE', 'CONTENT_TYPE') as $k) {

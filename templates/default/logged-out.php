@@ -1,0 +1,1 @@
+<h1>{tr:auth.logged_out}</h1>

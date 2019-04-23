@@ -11,9 +11,10 @@ namespace HereYouGo\UI;
 
 
 use HereYouGo\Config;
-use HereYouGo\JSON;
-use HereYouGo\JSON\Exception\UnableToDecode;
-use HereYouGo\JSON\Exception\UnableToEncode;
+use HereYouGo\Converter\JSON;
+use HereYouGo\Converter\JSON\Exception\UnableToDecode;
+use HereYouGo\Converter\JSON\Exception\UnableToEncode;
+use HereYouGo\Exception\BadType;
 
 /**
  * Class Locale
@@ -154,7 +155,7 @@ class Locale {
         
         return self::$codes;
     }
-    
+
     /**
      * Compile dictionary
      */
@@ -181,7 +182,11 @@ class Locale {
                     foreach($locations as $location) {
                         if(file_exists(HYG_ROOT.$location.'translations.json'))
                             try {
-                                self::$dictionary = array_merge(self::$dictionary, JSON::decode(file_get_contents(HYG_ROOT . $location . 'translations.json')));
+                                self::$dictionary = array_merge_recursive(
+                                    self::$dictionary,
+                                    JSON::decode(file_get_contents(HYG_ROOT . $location . 'translations.json'))
+                                );
+
                             } catch(UnableToDecode $e) {}
                         
                         foreach(scandir(HYG_ROOT.$location) as $item) {
@@ -211,6 +216,30 @@ class Locale {
         
         return self::$dictionary;
     }
+
+    /**
+     * Get raw translation from id
+     *
+     * @param string $id
+     *
+     * @return string|null
+     */
+    private static function getTranslation($id) {
+        self::compileDictionary();
+
+        $id = explode('.', $id);
+        $dict = &self::$dictionary;
+
+        while($id) {
+            $p = array_shift($id);
+            if(!array_key_exists($p, $dict))
+                return null;
+
+            $dict = &$dict[$p];
+        }
+
+        return $dict;
+    }
     
     /**
      * Get translation for id
@@ -219,12 +248,12 @@ class Locale {
      *
      * @return Translation
      *
-     * @throws \HereYouGo\Exception\BadType
+     * @throws BadType
      */
     public static function translate($id) {
-        $exists = self::isTranslatable($id);
+        $translation = self::getTranslation($id);
 
-        return new Translation($id, $exists ? self::$dictionary[$id] : '', !$exists);
+        return new Translation($id, (string)$translation, is_null($translation));
     }
     
     /**
@@ -234,7 +263,7 @@ class Locale {
      *
      * @return Translation
      *
-     * @throws \HereYouGo\Exception\BadType
+     * @throws BadType
      */
     public static function tr($id) {
         return self::translate($id);
@@ -248,8 +277,6 @@ class Locale {
      * @return bool
      */
     public static function isTranslatable($id) {
-        self::compileDictionary();
-
-        return array_key_exists($id, self::$dictionary);
+        return !is_null(self::getTranslation($id));
     }
 }

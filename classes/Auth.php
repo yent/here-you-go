@@ -4,9 +4,10 @@
 namespace HereYouGo;
 
 
-use HereYouGo\Auth\LocalUser;
+use HereYouGo\Auth\UnknownSP;
 use HereYouGo\Model\Entity\User;
 use ReflectionException;
+use HereYouGo\Auth\MissingAttribute;
 
 /**
  * Class Auth
@@ -14,11 +15,39 @@ use ReflectionException;
  * @package HereYouGo
  */
 abstract class Auth {
-    /** @var static|null */
-    private static $backend = null;
-
     /** @var User|null */
     private static $user = null;
+
+    /** @var self|string|null */
+    private static $sp = null;
+
+    /**
+     * Get configured SP if any
+     *
+     * @return Auth|string|null
+     *
+     * @throws UnknownSP
+     */
+    public static function getSP() {
+        if(is_null(self::$sp)) {
+            self::$sp = '';
+
+            $type = Config::get('auth.sp.type');
+            if($type) {
+                $class = '\\HereYouGo\\Auth\\SP\\'.ucfirst($type);
+
+                if(!Autoloader::exists($class))
+                    throw new UnknownSP($type);
+
+                /** @var self $class */
+                $class::init();
+
+                self::$sp = $class;
+            }
+        }
+
+        return self::$sp;
+    }
 
     /**
      * Get current user
@@ -29,38 +58,28 @@ abstract class Auth {
      * @throws Model\Exception\Broken
      * @throws Model\Exception\NotFound
      * @throws ReflectionException
+     * @throws MissingAttribute
+     * @throws UnknownSP
      */
     public static function getUser() {
         if(is_null(self::$user)) {
             self::$user = false;
 
-            /** @var Auth[] $backends */
-            $backends = ['LocalUser', 'Remote'];
-
-            $sp_type = Config::get('auth.sp.type');
-            if($sp_type) {
-                $class = '\\HereYouGo\\Auth\\SP\\' . ucfirst($sp_type);
-
-                if(Autoloader::exists($class)) {
-                    $backends[] = $class;
-
-                } else {
-                    // TODO throw
-                }
-            }
+            /** @var Auth[] $candidates */
+            $candidates = ['LocalUser', 'Remote', self::getSP()];
 
             $attributes = [];
-            foreach($backends as $backend) {
-                if(!$backend::hasUser()) continue;
+            foreach($candidates as $candidate) {
+                if(!$candidate || !$candidate::hasUser()) continue;
 
-                $attributes = $backend::getAttributes();
+                $attributes = $candidate::getAttributes();
                 break;
             }
 
             if($attributes) {
                 foreach(Config::get('auth.attributes') as $attribute)
                     if(!array_key_exists($attribute, $attributes))
-                        throw new MissingAttribute($attribute); // TODO
+                        throw new MissingAttribute($attribute);
 
                 self::$user = User::fromAuthAttributes($attributes);
             }
@@ -68,6 +87,11 @@ abstract class Auth {
 
         return self::$user;
     }
+
+    /**
+     * Init authentication backend (for SPs)
+     */
+    public static function init() {}
 
     /**
      * Check if any user logged-in
@@ -85,15 +109,11 @@ abstract class Auth {
 
     /**
      * Trigger login process (if any)
-     *
-     * @param string $target
      */
-    public static function doLogin($target) {}
+    public static function doLogin() {}
 
     /**
      * Trigger logout process (if any)
-     *
-     * @param string $target
      */
-    public static function doLogout($target) {}
+    public static function doLogout() {}
 }

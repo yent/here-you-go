@@ -38,7 +38,6 @@ class Internal extends Auth {
     /**
      * Trigger login process (if any)
      *
-     * @throws UI\Exception\TemplateNotFound
      * @throws BadType
      * @throws Broken
      * @throws ReflectionException
@@ -48,8 +47,6 @@ class Internal extends Auth {
 
         if(array_key_exists('user', $_SESSION))
             UI::redirect($target);
-
-        $template = UI\Template::resolve('internal-login');
 
         if(array_key_exists('login', $_POST)) { // Got credentials
             $login = $_POST['login'];
@@ -69,16 +66,16 @@ class Internal extends Auth {
                 } catch(NotFound $e) {}
 
                 // still here ? then display login template with unknown login/password message
-                $template->display(['target' => $target, 'state' => States::UNKNOWN_USER]);
+                return new UI\Page('internal-login', ['target' => $target, 'state' => States::UNKNOWN_USER]);
 
             } else {
                 // display login template with missing credentials message
-                $template->display(['target' => $target, 'state' => States::MISSING_CREDENTIAL]);
+                return new UI\Page('internal-login', ['target' => $target, 'state' => States::MISSING_CREDENTIAL]);
             }
         }
 
         // display login template
-        $template->display(['target' => $target, 'state' => States::NONE]);
+        return new UI\Page('internal-login', ['target' => $target, 'state' => States::NONE]);
     }
 
     /**
@@ -91,6 +88,6 @@ class Internal extends Auth {
     public static function doLogout() {
         unset($_SESSION['user']);
 
-        UI\Template::resolve('logged-out')->display(); // display template
+        return new UI\Page('logged-out');
     }
 }

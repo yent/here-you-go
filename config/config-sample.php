@@ -1,5 +1,7 @@
 <?php
 
+$conf['application_name'] = 'Here you go';
+
 $conf['timezone'] = 'Europe/Paris';
 
 $conf['logger'] = [
@@ -55,3 +57,5 @@ $conf['auth'] = [
 ];
 
 $conf['admin'] = ['foo@bar.tld'];
+
+$conf['client_debug'] = true;

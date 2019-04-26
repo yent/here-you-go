@@ -10,9 +10,6 @@ namespace HereYouGo\UI;
 
 use Exception;
 use HereYouGo\Auth;
-use HereYouGo\Auth\SP\Internal;
-use HereYouGo\Config;
-use HereYouGo\Exception\Base;
 use HereYouGo\HTTP\Request;
 
 include dirname(__FILE__).'/../init.php';
@@ -20,27 +17,21 @@ include dirname(__FILE__).'/../init.php';
 try {
     $sp = Auth::getSP();
     if($sp) {
-        Router::addRoute(['get', 'post'], '/login', null, "$sp::doLogin");
-        Router::addRoute(['get', 'post'], '/logout', null, "$sp::doLogout");
+        Router::addRoute(['get', 'post'], '/log-in', null, "$sp::doLogin");
+        Router::addRoute(['get', 'post'], '/log-out', null, "$sp::doLogout");
     }
 
     // Catch all
-    Router::addRoute(['get', 'post'], '/.*', null, function() {
-        Template::resolve('main')->display();
-    });
+    Router::addRoute(['get', 'post'], '/.*', null, new Page('main'));
 
     Request::parse();
-
-    Template::resolve('header')->display();
 
     try {
         Router::route();
 
     } catch(Exception $e) {
-        Template::resolve('exception')->display(['exception' => $e]);
+        (new Page('exception', ['exception' => $e]))->display();
     }
-
-    Template::resolve('footer')->display();
 
 } catch(Exception $e) {
     die($e->getMessage());

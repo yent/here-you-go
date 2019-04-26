@@ -26,10 +26,14 @@ class Router extends \HereYouGo\Router {
      * @throws TemplateNotFound
      */
     protected static function run($action, $args) {
-        if(is_callable($action)) $action = call_user_func_array($action, $args);
+        if(is_callable($action))
+            $action = call_user_func_array($action, $args);
 
-        if(!$action) return;
+        if($action instanceof Page) {
+            $action->display();
 
-        Template::resolve($action)->display();
+        } else if(is_string($action)) {
+            Template::resolve($action)->display();
+        }
     }
 }

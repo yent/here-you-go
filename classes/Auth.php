@@ -4,7 +4,9 @@
 namespace HereYouGo;
 
 
-use HereYouGo\Auth\UnknownSP;
+use HereYouGo\Auth\Exception\UnknownSP;
+use HereYouGo\Auth\LocalUser;
+use HereYouGo\Auth\Remote;
 use HereYouGo\Model\Entity\User;
 use ReflectionException;
 use HereYouGo\Auth\MissingAttribute;
@@ -34,7 +36,7 @@ abstract class Auth {
 
             $type = Config::get('auth.sp.type');
             if($type) {
-                $class = '\\HereYouGo\\Auth\\SP\\'.ucfirst($type);
+                $class = 'HereYouGo\\Auth\\SP\\'.ucfirst($type);
 
                 if(!Autoloader::exists($class))
                     throw new UnknownSP($type);
@@ -66,7 +68,7 @@ abstract class Auth {
             self::$user = false;
 
             /** @var Auth[] $candidates */
-            $candidates = ['LocalUser', 'Remote', self::getSP()];
+            $candidates = [LocalUser::class, Remote::class, self::getSP()];
 
             $attributes = [];
             foreach($candidates as $candidate) {

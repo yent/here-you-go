@@ -1,11 +1,15 @@
 {
   "report_error_id": "Please send along the following error identifier while reporting this error to your support team : {id}",
   "auth": {
+    "log-in": "Log-in",
+    "log-out": "Log-out",
+    "logged-out": "You have been successfully logged-out"
+  },
+  "internal-login": {
     "login": "Login",
     "password": "Password",
-    "log_in": "Log-in",
+    "page": "Authentication",
     "missing_credentials": "Missing some credentials",
-    "unknown_user": "Credentials do not match a known user",
-    "logged_out": "You have been successfully logged-out"
+    "unknown_user": "Credentials do not match a known user"
   }
 }

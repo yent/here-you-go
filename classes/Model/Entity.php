@@ -48,40 +48,6 @@ abstract class Entity {
     }
 
     /**
-     * Check and format primary key
-     *
-     * @param array|string $pk
-     *
-     * @throws Broken
-     */
-    final protected static function checkPk(&$pk) {
-        /** @var string[] $parts */
-        $parts = array_filter(array_map(function(Property $property) {
-            return $property->primary ? $property->name : null;
-        }, static::model()->data_map));
-
-        if(!is_array($pk)) {
-            if(count($parts) > 1)
-                throw new Broken(static::class, 'entity has multi-properties primary key but single part was provided');
-
-            $pk[reset($parts)] = $pk;
-        }
-
-        foreach($parts as $part) {
-            if(!array_key_exists($part, $pk))
-                throw new Broken(static::class, "primary key part $pk is missing");
-
-            if(!$pk[$part])
-                throw new Broken(static::class, "primary key part $pk is empty");
-        }
-
-        // keep only pk parts
-        $pk = array_intersect_key($pk, array_fill_keys($parts, true));
-
-        ksort($pk);
-    }
-
-    /**
      * Get primary key components
      *
      * @param bool $as_string
@@ -90,26 +56,22 @@ abstract class Entity {
      *
      * @throws Broken
      */
-    final public function getPk($as_string = false) {
-        $parts = array_filter(array_map(function(Property $property) {
-            return $property->primary ? $property->name : null;
-        }, static::model()->data_map));
+    final public function getPrimaryKey($as_string = false) {
+        $primary_key = [];
+        foreach(static::model()->primary_keys as $key)
+            $primary_key[$key->name] = $this->{$key->name};
 
-        $pk = [];
-        foreach($parts as $name)
-            $pk[$name] = $this->$name;
-
-        static::checkPk($pk);
+        static::model()->checkPrimaryKey($primary_key);
 
         if(!$as_string)
-            return $pk;
+            return $primary_key;
 
-        if(count($pk) === 1)
-            return (string)reset($pk);
+        if(count($primary_key) === 1)
+            return (string)reset($primary_key);
 
         return implode(',', array_map(function($k, $v) {
             return "$k=$v";
-        }, array_keys($pk), array_values($pk)));
+        }, array_keys($primary_key), array_values($primary_key)));
     }
 
     /**
@@ -120,24 +82,7 @@ abstract class Entity {
      * @throws Broken
      */
     final public function getCacheKey() {
-        return $this->getPk(true);
-    }
-
-    /**
-     * Build cache key from primary key parts
-     *
-     * @param array|string $pk
-     *
-     * @return string
-     *
-     * @throws Broken
-     */
-    final public static function buildCacheKey($pk) {
-        static::checkPk($pk);
-
-        return implode(',', array_map(function($k, $v) {
-            return "$k=$v";
-        }, array_keys($pk), array_values($pk)));
+        return $this->getPrimaryKey(true);
     }
 
     /**
@@ -191,7 +136,7 @@ abstract class Entity {
     /**
      * Get from primary key
      *
-     * @param array|string $pk
+     * @param array|string $primary_key
      * @param bool $fatal
      *
      * @return self
@@ -201,17 +146,21 @@ abstract class Entity {
      * @throws NotFound
      * @throws ReflectionException
      */
-    public static function fromPk($pk, $fatal = true) {
-        static::checkPk($pk);
+    public static function fromPrimaryKey($primary_key, $fatal = true) {
+        $key = static::model()->buildCacheKey($primary_key);
 
-        $key = static::buildCacheKey($pk);
+        if(!is_array($primary_key)) { // force primary to be an array
+            $keys = static::model()->primary_keys;
+            $primary_key = [reset($keys)->name => $primary_key];
+        }
+
         $entity = Cache::getEntity(static::class, $key);
         if($entity)
             return $entity;
 
         $criteria = [];
         $placeholders = [];
-        foreach($pk as $k => $v) {
+        foreach($primary_key as $k => $v) {
             $criteria[] = "$k = :$k";
             $placeholders[":$k"] = $v;
         }
@@ -219,7 +168,7 @@ abstract class Entity {
         $entities = static::all(implode(' AND ', $criteria), $placeholders);
         if(!$entities) {
             if($fatal)
-                throw new NotFound(static::class, $pk);
+                throw new NotFound(static::class, $primary_key);
 
             return null;
         }
@@ -246,7 +195,7 @@ abstract class Entity {
      * @throws ReflectionException
      */
     public static function fromData(array $data) {
-        $entity = static::fromPk($data, false); // also ensures that primary key columns are included
+        $entity = static::fromPrimaryKey($data, false); // also ensures that primary key columns are included
         $properties = static::model()->data_map;
 
         if($entity) {
@@ -421,7 +370,7 @@ abstract class Entity {
             if(!array_key_exists($other, $this->relation_keys))
                 return null;
 
-            $other = $other::fromPk($this->relation_keys[$other]);
+            $other = $other::fromPrimaryKey($this->relation_keys[$other]);
             Cache::setRelation($this, $other);
 
             return $other;
@@ -542,12 +491,12 @@ abstract class Entity {
         } else {
             // this has many others, other has many this => there is a relation table
             $exists = array_map(function(Entity $other) {
-                return $other->getPk(true);
+                return $other->getPrimaryKey(true);
             }, $this->getRelated($other_class));
 
             // ignore already related others
             $others = array_filter($others, function(Entity $other) use($exists) {
-                return !in_array($other->getPk(true), $exists);
+                return !in_array($other->getPrimaryKey(true), $exists);
             });
 
             $relation_table = static::model()->getRelationTableWith($other);
@@ -703,7 +652,7 @@ abstract class Entity {
      * @throws Broken
      */
     public function is(Entity $other) {
-        return $this->getPk(true) === $other->getPk(true);
+        return $this->getPrimaryKey(true) === $other->getPrimaryKey(true);
     }
 
     /**
@@ -767,6 +716,6 @@ abstract class Entity {
      * @throws Broken
      */
     public function __toString() {
-        return get_class($this).'#'.$this->getPk(true);
+        return get_class($this).'#'.$this->getPrimaryKey(true);
     }
 }

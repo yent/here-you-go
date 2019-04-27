@@ -1,7 +1,7 @@
 <?php
 
 
-namespace HereYouGo\Auth;
+namespace HereYouGo\Auth\Exception;
 
 
 use HereYouGo\Exception\Detailed;

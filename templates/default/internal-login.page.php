@@ -6,21 +6,34 @@ use HereYouGo\UI\Locale;
 /** @var string $target */
 
 ?>
-<form method="post" action="">
+<form class="col-md-2 offset-md-5" method="post" action="">
+    <input type="hidden" value="<?php echo $target ?>" />
+
     <?php if($state) { ?>
-        <div class="error"><?php echo Locale::translate("auth.$state") ?></div>
+        <div class="alert alert-danger"><?php echo Locale::translate("internal-login.$state") ?></div>
     <?php } ?>
 
-    <label for="login">
-        {tr:auth.login}
-        <input type="text" name="login" />
-    </label>
+    <div class="form-group">
+        <label for="login">{tr:internal-login.login}</label>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text fa fa-user" id="login-prepend"></span>
+            </div>
+            <input type="text" name="login" class="form-control" aria-describedby="login-prepend" placeholder="{tr:internal-login.login}">
+        </div>
+    </div>
 
-    <label for="password">
-        {tr:auth.password}
-        <input type="password" name="login" />
-    </label>
+    <div class="form-group">
+        <label for="password">{tr:internal-login.password}</label>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text fa fa-lock" id="password-prepend"></span>
+            </div>
+            <input type="password" name="password" class="form-control" aria-describedby="password-prepend" placeholder="{tr:internal-login.password}">
+        </div>
+    </div>
 
-    <input type="hidden" value="<?php echo $target ?>" />
-    <input type="submit" value="{tr:auth.log_in}" />
+    <div class="form-row justify-content-center">
+        <button type="submit" class="btn btn-primary">{tr:auth.log-in}</button>
+    </div>
 </form>

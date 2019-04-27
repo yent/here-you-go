@@ -19,6 +19,7 @@ class Remote extends Auth {
      */
     public static function hasUser(): bool {
         // TODO: Implement hasUser() method.
+        return false;
     }
 
     /**
@@ -28,5 +29,6 @@ class Remote extends Auth {
      */
     public static function getAttributes(): array {
         // TODO: Implement getAttributes() method.
+        return [];
     }
 }

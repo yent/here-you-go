@@ -85,7 +85,7 @@ class Query {
         $this->criteria = $criteria;
 
         foreach(array_keys($placeholders) as $k)
-            if(substr($k, 0, 1) === ':')
+            if($k{0} !== ':')
                 throw new Broken($k, 'placeholders must start with ":"');
 
         $this->placeholders = $placeholders;
@@ -158,15 +158,15 @@ class Query {
         $properties = $class::model()->data_map;
 
         foreach($properties as $property) {
-            $replace = ["`(?<!\.)$property->column`"];
+            $replace = ["`(?<!\.|:)$property->column`"];
             if($property->column !== $property->name)
-                $replace[] = "`(?<!\.)$property->name`";
+                $replace[] = "`(?<!\.|:)$property->name`";
 
             $statement = preg_replace($replace, "$scope.$property->column", $statement);
         }
 
         // placeholders
-        $statement = preg_replace('`:[a-z0-9_]+`', ":{$scope}___$1", $statement);
+        $statement = preg_replace('`:([a-z0-9_]+)`', ":{$scope}___$1", $statement);
 
         return $statement;
     }

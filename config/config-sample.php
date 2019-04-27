@@ -17,7 +17,7 @@ $conf['db'] = [
 
 //$conf['skin'] = 'custom_skin';
 
-$conf['available_locales'] = ['en' => 'English'];
+$conf['available_locales'] = ['en'];
 
 $conf['base_url'] = 'https://'.$_SERVER['SERVER_NAME'].'/';
 $conf['nice_urls'] = true;
@@ -32,7 +32,7 @@ $conf['lang'] = [
 
 $conf['auth'] = [
     'sp' => [
-        'type' => false,
+        'type' => 'internal',
         // further sp config
     ],
     'remote' => [
@@ -58,4 +58,4 @@ $conf['auth'] = [
 
 $conf['admin'] = ['foo@bar.tld'];
 
-$conf['client_debug'] = true;
+$conf['debug'] = true;

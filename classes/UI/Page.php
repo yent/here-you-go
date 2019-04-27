@@ -38,7 +38,7 @@ class Page {
      * @throws TemplateNotFound
      */
     public function display() {
-        Template::resolve('header')->display(['page-id' => $this->id]);
+        Template::resolve('header')->display(['page' => $this]);
 
         Template::resolve($this->id.'.page')->display($this->vars);
 

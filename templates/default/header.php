@@ -8,12 +8,12 @@ use HereYouGo\UI\Locale;use HereYouGo\UI\Page;use HereYouGo\UI\Resource;
 
 $title = Config::get('application_name');
 if(Locale::isTranslatable($page->id.'_page'))
-    $title .= ($title ? ' - ' : '').Locale::translate($page->id.'_page');
+    $title .= ($title ? ' - ' : '').Locale::translate($page->id.'.page');
 
 ?><!DOCTYPE html>
 <html>
     <head>
-        <title>Game of Life</title>
+        <title><?php echo Sanitizer::sanitizeOutput($title) ?></title>
 
         <?php foreach(Resource::gather('styles') as $file) { ?>
             <link rel="stylesheet" href="<?php echo $file ?>" type="text/css" media="all" />
@@ -22,36 +22,25 @@ if(Locale::isTranslatable($page->id.'_page'))
         <?php foreach(Resource::gather('scripts') as $file) { ?>
             <script src="<?php echo $file ?>" type="text/javascript"></script>
         <?php } ?>
-
-        <link rel="stylesheet" href="jquery-ui/jquery-ui.min.css" type="text/css" media="all" />
-
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous" />
-
-        <link rel="stylesheet" href="styles.css" type="text/css" media="all" />
-
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js" type="text/javascript"></script>
-
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" type="text/javascript"></script>
-        <script src="jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
-
-        <script src="https://malsup.github.io/jquery.blockUI.js" type="text/javascript"></script>
-
-        <script src="script.js" type="text/javascript"></script>
     </head>
 
     <body>
-        <header><?php echo Sanitizer::sanitizeOutput($title) ?></header>
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <a class="navbar-brand" href="{url:/}"><?php echo Sanitizer::sanitizeOutput(Config::get('application_name')) ?></a>
 
-        <nav>
-            <ul>
-                <li><a href="#"><span class="fas fa-folder-open"></span> Load</a></li>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item"><a class="nav-link" href="#"><span class="fas fa-folder-open"></span> Load</a></li>
 
                 <?php if(Auth::getSP()) { ?>
-                    <li class="right">
-                        <?php if(Auth::hasUser()) { ?>
-                            <a href="{url:/log-in}">{tr:log-in}</a>
+                    <li class="nav-item">
+                        <?php if(Auth::getUser()) { ?>
+                            <a class="nav-link" href="{url:/log-out}">{tr:auth.log-out}</a>
                         <?php } else { ?>
-                            <a href="{url:/log-out}">{tr:log-out}</a>
+                            <a class="nav-link" href="{url:/log-in}">{tr:auth.log-in}</a>
                         <?php } ?>
                     </li>
                 <?php } ?>

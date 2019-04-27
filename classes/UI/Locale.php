@@ -45,7 +45,7 @@ class Locale {
                 if(!is_dir(HYG_ROOT.$location)) continue;
                 
                 foreach(scandir(HYG_ROOT.$location) as $id) {
-                    if(substr($id, 0, 1) === '.') continue;
+                    if($id{0} === '.') continue;
                     if(!is_dir(HYG_ROOT.$location.'/'.$id)) continue;
                     if(!file_exists(HYG_ROOT.$location.'/'.$id.'/name')) continue;
                     $available[$id] = trim(file_get_contents(HYG_ROOT.$location.'/'.$id.'/name'));
@@ -165,7 +165,7 @@ class Locale {
             $cache = new Cache('locales');
             
             $id = implode('-', $codes);
-            if($cache->isValid($id)) {
+            if($cache->isValid($id) && !Config::get('debug')) {
                 try {
                     self::$dictionary = JSON::decode($cache->get($id));
                 } catch (UnableToDecode $e) {
@@ -180,17 +180,21 @@ class Locale {
                     
                     $locations = ["locales/$code/", "config/locales/$code/"];
                     foreach($locations as $location) {
-                        if(file_exists(HYG_ROOT.$location.'translations.json'))
+                        if(!is_dir(HYG_ROOT.$location)) continue;
+
+                        if(file_exists(HYG_ROOT.$location.'translations.json')) {
                             try {
                                 self::$dictionary = array_merge_recursive(
                                     self::$dictionary,
-                                    JSON::decode(file_get_contents(HYG_ROOT . $location . 'translations.json'))
+                                    JSON::decode(file_get_contents(HYG_ROOT.$location.'translations.json'))
                                 );
 
-                            } catch(UnableToDecode $e) {}
+                            } catch (UnableToDecode $e) {
+                            }
+                        }
                         
                         foreach(scandir(HYG_ROOT.$location) as $item) {
-                            if(substr($item, 0, 1) === '.') continue;
+                            if($item{0} === '.') continue;
                             if(!is_file(HYG_ROOT.$location.$item)) continue;
                             if(!preg_match('`^(.+)\.(html?|txt)$`', $item, $match)) continue;
                             

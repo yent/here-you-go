@@ -55,7 +55,7 @@ class Internal extends Auth {
             if($login && $password) {
                 try {
                     /** @var User $user */
-                    $user = User::fromPk($login);
+                    $user = User::fromPrimaryKey($login);
 
                     if(Auth\Password::verify($password, $user->auth_args)) {
                         $_SESSION['user'] = ['id' => $user->id, 'email' => $user->email, 'name' => $user->name];

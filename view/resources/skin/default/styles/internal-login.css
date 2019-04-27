@@ -1,0 +1,14 @@
+/*
+ * Part of the Here You Go software.
+ * Released under the GNU General Public License version 3.
+ * See LICENCE file
+ *
+ */
+
+main[data-page="internal-login"] label {
+    display: none;
+}
+
+main[data-page="internal-login"] .input-group-text {
+    font-size: 1.4rem;
+}

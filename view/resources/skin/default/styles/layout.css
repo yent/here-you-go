@@ -1,0 +1,15 @@
+/*
+ * Part of the Here You Go software.
+ * Released under the GNU General Public License version 3.
+ * See LICENCE file
+ *
+ */
+
+nav {
+    background-color: #34ce57;
+}
+
+main {
+    padding: .5rem;
+    min-height: calc(100% - 15rem);
+}

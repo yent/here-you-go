@@ -5,7 +5,6 @@ namespace HereYouGo;
 
 
 use HereYouGo\Exception\UnknownProperty;
-use HereYouGo\Model\Cache;
 use HereYouGo\Model\Constant\Relation;
 use HereYouGo\Model\Entity;
 use HereYouGo\Model\Exception\Broken;
@@ -46,11 +45,11 @@ class Model {
      * @throws Broken
      */
     public function __construct($class) {
-        if(!is_subclass_of($class, 'Entity', true))
+        if(!is_subclass_of($class, Entity::class, true))
             throw new Broken($class, 'not a child class of Entity');
 
         $this->class = $class;
-        $this->table = $this->class.'s';
+        $this->table = substr($this->class, strrpos($this->class, '\\') + 1).'s';
 
         try {
             $reflexion = new ReflectionClass($class);
@@ -74,10 +73,14 @@ class Model {
 
             $defaults = $reflexion->getDefaultProperties();
             foreach($reflexion->getProperties() as $property) {
+                if($property->isStatic()) continue;
                 $name = $property->getName();
 
                 $dfn = preg_grep('`@var\s`', explode("\n", $property->getDocComment()));
                 $dfn = preg_replace('`^.*@var\s+(.+)(?:\s+\*+/|$)$`', '$1', reset($dfn));
+                $dfn = preg_replace('`\s+\*+/$`', '', $dfn);
+
+                if(!preg_match('`^[^\s]+\s+@db\s+`', $dfn)) continue;
 
                 $default = array_key_exists($name, $defaults) ? $defaults[$name] : null;
                 $this->properties['own'][$name] = new Property($class, $name, $dfn, $default);
@@ -102,6 +105,8 @@ class Model {
         $property_names = array_keys($this->properties['own']);
 
         if($with_relations && is_null($this->properties['relation'])) {
+            $this->properties['relation'] = [];
+
             foreach($this->relations as $other => $relation) {
                 try {
                     if(!Relation::isValue($relation))
@@ -130,6 +135,8 @@ class Model {
         }
 
         if(is_null($this->properties['extension'])) {
+            $this->properties['extension'] = [];
+
             $properties = (new Event('datamap', $this->class))->trigger(function() {
                 return [];
             });
@@ -239,6 +246,56 @@ class Model {
         sort($tables);
 
         return implode('', $tables);
+    }
+
+    /**
+     * Check and format primary key
+     *
+     * @param array|string $primary_key
+     *
+     * @throws Broken
+     */
+    public function checkPrimaryKey(&$primary_key) {
+        $keys = [];
+        foreach($this->primary_keys as $key)
+            $keys[$key->name] = $key;
+
+        if(!is_array($primary_key)) {
+            if(count($keys) > 1)
+                throw new Broken(static::class, 'entity has multi-properties primary key but single part was provided');
+
+            $primary_key = [key($keys) => $primary_key];
+        }
+
+        foreach($keys as $key) {
+            if(!array_key_exists($key->name, $primary_key))
+                throw new Broken(static::class, "primary key part $key->name is missing");
+
+            if(!$primary_key[$key->name])
+                throw new Broken(static::class, "primary key part $key->name is empty");
+        }
+
+        // keep only pk parts
+        $primary_key = array_intersect_key($primary_key, $keys);
+
+        ksort($primary_key);
+    }
+
+    /**
+     * Build cache key from primary key parts
+     *
+     * @param array|string $primary_key
+     *
+     * @return string
+     *
+     * @throws Broken
+     */
+    public function buildCacheKey($primary_key) {
+        $this->checkPrimaryKey($primary_key);
+
+        return implode(',', array_map(function($k, $v) {
+            return "$k=$v";
+        }, array_keys($primary_key), array_values($primary_key)));
     }
 
     /**

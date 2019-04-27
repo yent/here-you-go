@@ -44,7 +44,7 @@ class Logger {
         $conf = Config::get('logger');
         if(!$conf || !is_array($conf)) $conf = $default;
 
-        $class = '\\HereYouGo\\Logger\\'.ucfirst($conf['type']);
+        $class = 'HereYouGo\\Logger\\'.ucfirst($conf['type']);
         if(!class_exists($class)) $conf = $default;
 
         self::$facility = new $class($conf);

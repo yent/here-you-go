@@ -95,11 +95,11 @@ class Property {
         $this->class = $class;
         $this->name = $name;
         
-        
         // parse definition and try to get type
         
         $parts = preg_split('`\s+`', trim($definition));
         $php_type = explode('|', array_shift($parts));
+        array_shift($parts); // get rid of @db
         
         $definition = [];
         foreach($parts as $part) {
@@ -202,7 +202,7 @@ class Property {
             $this->addIndex($definition['unique'], false);
 
         if(array_key_exists('convert', $definition)) {
-            $converter = '\\HereYouGo\\Converter\\'.$definition['convert'];
+            $converter = 'HereYouGo\\Converter\\'.$definition['convert'];
             if(Autoloader::exists($converter)) {
                 if(!method_exists($converter, 'encode') || !method_exists($converter, 'decode'))
                     throw new Broken("{$this->class}->{$this->name}", 'data converter misses either encode or decode method(s)');

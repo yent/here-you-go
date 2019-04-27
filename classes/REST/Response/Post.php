@@ -43,7 +43,7 @@ class Post {
         Response::sendCode(201);
         
         $path = $this->location;
-        if(substr($path, 0, 1) != '/') $path = '/'.$path;
+        if($path{0} !== '/') $path = '/'.$path;
         
         header('Location: '.Config::get('base_url').'rest.php'.$path);
         

@@ -6,6 +6,8 @@ namespace HereYouGo\UI;
 
 use HereYouGo\Config;
 use HereYouGo\Converter\JSON;
+use HereYouGo\Event;
+use HereYouGo\Exception\FileNotFound;
 
 /**
  * Class Resource
@@ -13,7 +15,21 @@ use HereYouGo\Converter\JSON;
  * @package HereYouGo\UI
  */
 class Resource {
+    const LIB = [
+        'styles' => [
+            'bootstrap-4.3.1-dist/css/bootstrap.css',
+            'fontawesome-free-5.8.1-web/css/all.css',
+        ],
+        'scripts' => [
+            'jquery-3.4.0.min.js',
+            'bootstrap-4.3.1-dist/js/bootstrap.bundle.js',
+            'tooltip.min.js',
+        ],
+    ];
+
     const CACHE_ID = ['styles' => 'styles.css', 'scripts' => 'scripts.js'];
+
+    const PACKERS = ['styles' => self::class.'::packStyle', 'scripts' => self::class.'::packScript'];
 
     /**
      * Get resources of a certain type in the right order, packed if not debugging client side
@@ -21,90 +37,113 @@ class Resource {
      * @param string $type
      *
      * @return string[]
-     *
-     * @throws JSON\Exception\UnableToDecode
      */
     public static function gather($type) {
         $cache = new Cache('resources');
         $id = array_key_exists($type, self::CACHE_ID) ? self::CACHE_ID[$type] : $type;
 
-        $debug = Config::get('client_debug');
+        $debug = Config::get('debug');
 
         if($cache->isValid($id) && !$debug)
-            return ["/view/cache/resources/$id"];
+            return ["cache/resources/$id"];
 
-        $locations = array_filter(['default', Config::get('skin')]);
+        $files = (new Event("libraries_$type"))->trigger(function() use($type) {
+            return array_map(function($file) {
+                return "resources/lib/$file";
+            }, self::LIB[$type]);
+        });
 
-        $resources = [];
-        foreach($locations as $location) {
-            $rel = "/view/resources/skin/$location/$type/";
-            $dir = HYG_ROOT.$rel;
-            if(!is_dir($dir)) continue;
+        $files = array_merge($files, (new Event("libraries_$type"))->trigger(function() use($type) {
+            $resources = [];
 
-            if(!file_exists("$dir/order.json"))
-                throw new TODO(); // TODO
+            $locations = array_filter(['default', Config::get('skin')]);
+            foreach($locations as $location) {
+                $rel = "resources/skin/$location/$type/";
+                $dir = HYG_ROOT.'/view/'.$rel;
+                if(!is_dir($dir)) continue;
 
-            $order = JSON::decode(file_get_contents("$dir/order.json"));
+                if(!file_exists("$dir/order.json"))
+                    throw new FileNotFound("$dir/order.json");
 
-            foreach($order as $item)
-                $resources[] = $rel.$item;
-        }
+                $order = JSON::decode(file_get_contents("$dir/order.json"));
+
+                foreach($order as $item)
+                    $resources[] = $rel.$item;
+            }
+
+            return $resources;
+        }));
 
         if($debug)
-            return $resources;
+            return $files;
 
-        $packer = 'pack'.ucfirst($type);
-        if(method_exists(self::class, $packer)) {
+        if(array_key_exists($type, self::PACKERS)) {
             /**
-             * @uses Resource::packScripts()
-             * @uses Resource::packStyles()
+             * @uses Resource::packScript()
+             * @uses Resource::packStyle()
              */
-            $packed = self::$packer($resources);
+            $packer = self::PACKERS[$type];
 
         } else {
-            $packed = implode("\n", array_map(function($file) {
-                return file_get_contents(HYG_ROOT.$file);
-            }, $resources));
+            $packer = function($file) {
+                return file_get_contents(HYG_ROOT.'/view/'.$file);
+            };
         }
+
+        $packed = implode("\n", array_map($packer, $files));
 
         $cache->set($id, $packed);
 
-        return ["/view/cache/resources/$id"];
+        return ["cache/resources/$id"];
     }
 
     /**
-     * Pack C-style files
+     * Pack C-style file
      *
-     * @param string[] $files
+     * @param string $file
      *
      * @return string
      */
-    private static function packCStyle($files) {
-        return implode("\n", array_map(function($file) {
-            return "/*** $file ***/\n".file_get_contents(HYG_ROOT.$file);
-        }, $files));
+    private static function packCStyle($file) {
+        return "/*** $file ***/\n".file_get_contents(HYG_ROOT.'/view/'.$file);
     }
 
     /**
-     * Pack css files
+     * Pack css file
      *
-     * @param string[] $files
+     * @param string $file
      *
      * @return string
      */
-    private static function packStyles($files) {
-        return self::packCStyle($files);
+    private static function packStyle($file) {
+        $style = self::packCStyle($file);
+
+        $rel = '../../'.dirname($file);
+
+        $style = preg_replace_callback('`url\((\'|"|)([^\)]+)\1\)`U', function($match) use($rel) {
+            $url = $match[2];
+
+            if(preg_match('`^(https?:)//`', $url))
+                return "url('$url')";
+
+            if($url{0} === '/')
+                return "url('$url')";
+
+            return "url('$rel/$url')";
+        }, $style);
+
+        return $style;
     }
 
     /**
-     * Pack javascript files
+     * Pack javascript file
      *
-     * @param string[] $files
+     * @param string $file
      *
      * @return string
      */
-    private static function packScripts($files) {
-        return self::packCStyle($files);
+    private static function packScript($file) {
+        return self::packCStyle($file);
     }
 
     /**
@@ -113,14 +152,16 @@ class Resource {
      * @param string $name
      *
      * @return string
+     *
+     * @throws FileNotFound
      */
     public static function file($name) {
         foreach(array_filter([Config::get('skin'), 'default']) as $location) {
-            $rel = "/view/resources/skin/$location/$name";
-            if(file_exists(HYG_ROOT.$rel))
+            $rel = "resources/skin/$location/$name";
+            if(file_exists(HYG_ROOT.'/view/'.$rel))
                 return $rel;
         }
 
-        throw new TODO(); // TODO
+        throw new FileNotFound($name);
     }
 }

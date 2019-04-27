@@ -8,6 +8,7 @@
 
 namespace HereYouGo\HTTP;
 
+use HereYouGo\Config;
 use HereYouGo\Sanitizer;
 
 use HereYouGo\Converter\XML;

@@ -24,16 +24,16 @@ use ReflectionException;
  * @property string $auth_args
  */
 class User extends Entity {
-    /** @var string size=64 primary */
+    /** @var string @db size=64 primary */
     protected $id = '';
 
-    /** @var string size=128 */
+    /** @var string @db size=128 */
     protected $email = '';
 
-    /** @var string size=128 */
+    /** @var string @db size=128 */
     protected $name = '';
 
-    /** @var string size=128 */
+    /** @var string @db size=128 */
     protected $auth_args = '';
 
     /**
@@ -64,7 +64,7 @@ class User extends Entity {
             throw new Broken(static::class, "missing id key");
 
         /** @var self $user */
-        $user = self::fromPk(['id' => $attributes['id']]);
+        $user = self::fromPrimaryKey(['id' => $attributes['id']]);
 
         $changed = false;
         foreach($attributes as $attribute => $value) {

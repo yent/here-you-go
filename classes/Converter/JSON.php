@@ -41,7 +41,7 @@ class JSON {
      *
      * @throws UnableToDecode
      */
-    public static function decode($json, $assoc = false) {
+    public static function decode($json, $assoc = true) {
         $data = json_decode($json, $assoc);
 
         if(json_last_error())

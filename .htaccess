@@ -1,5 +1,0 @@
-RewriteEngine on
-
-RewriteBase /here-you-go
-
-RewriteRule (.*)                      view/$1  [QSA]

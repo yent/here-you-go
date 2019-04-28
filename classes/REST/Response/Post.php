@@ -45,7 +45,7 @@ class Post {
         $path = $this->location;
         if($path{0} !== '/') $path = '/'.$path;
         
-        header('Location: '.Config::get('base_url').'rest.php'.$path);
+        header('Location: '.Config::get('web.base_url').'rest.php'.$path);
         
         return $this->data;
     }

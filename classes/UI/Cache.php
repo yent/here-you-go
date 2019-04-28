@@ -10,12 +10,18 @@
 namespace HereYouGo\UI;
 
 
-use HereYouGo\Logger;
+use HereYouGo\Config;
+use HereYouGo\Exception\UnknownProperty;
+use HereYouGo\UI\Exception\CouldNotCreateCache;
+use HereYouGo\UI\Exception\CouldNotReadCache;
+use HereYouGo\UI\Exception\CouldNotWriteCache;
 
 /**
  * Class Cache
  *
  * @package HereYouGo\UI
+ *
+ * @property-read string $base
  */
 class Cache {
     /** @var string */
@@ -28,11 +34,20 @@ class Cache {
      * Cache constructor.
      *
      * @param string $base
+     *
+     * @throws CouldNotCreateCache
      */
     public function __construct($base) {
-        $this->base = $base;
+        $this->base = Config::get('web.cache_path');
+        if($this->base && substr($this->base, 1) !== '/')
+            $this->base .= '/';
+
+        $this->base .= $base;
         
         $this->root = HYG_ROOT.'view/cache/'.$base.'/';
+
+        if(!is_dir($this->root) && !mkdir($this->root, 0755, true))
+            throw new CouldNotCreateCache($this->root);
     }
     
     /**
@@ -43,7 +58,7 @@ class Cache {
      * @return bool
      */
     public function exists($id) {
-        return is_dir($this->root) && file_exists($this->root.$id);
+        return file_exists($this->root.$id);
     }
     
     /**
@@ -52,10 +67,10 @@ class Cache {
      * @return int
      */
     public static function minDate() {
-        $depends = ['config/protected.php', 'config/overrides.json'];
+        $depends = [HYG_CONFIG.'protected.php', HYG_CONFIG.'overrides.json'];
         
         $mtimes = array_filter(array_map(function($file) {
-            return file_exists(HYG_ROOT.$file) ? filemtime(HYG_ROOT.$file) : null;
+            return file_exists($file) ? filemtime($file) : null;
         }, $depends));
         
         return max($mtimes);
@@ -75,11 +90,14 @@ class Cache {
     /**
      * Set cache item
      *
-     * @param $id
-     * @param $contents
+     * @param string $id
+     * @param string $contents
+     *
+     * @throws CouldNotWriteCache
      */
     public function set($id, $contents) {
-        file_put_contents($this->root.$id, $contents) || Logger::error("could not write $id to $this");
+        if(!file_put_contents($this->root.$id, $contents))
+            throw new CouldNotWriteCache($this, $id);
     }
     
     /**
@@ -87,7 +105,9 @@ class Cache {
      *
      * @param string $id
      *
-     * @return false|string
+     * @return string|false
+     *
+     * @throws CouldNotReadCache
      */
     public function get($id) {
         if(!$this->isValid($id))
@@ -95,30 +115,41 @@ class Cache {
         
         $contents = file_get_contents($this->root.$id);
         if($contents === false)
-            Logger::error("could not read $id from $this");
+            throw new CouldNotReadCache($this, $id);
         
         return $contents;
     }
-    
+
     /**
-     * Get cached if it exists, build it and cache it otherwise
+     * Get cache item URL
      *
      * @param string $id
-     * @param callable $builder
      *
-     * @return false|string
+     * @return string|false
      */
-    public function getOrSet($id, callable $builder) {
-        $contents = $this->get($id);
-        if($contents === false) {
-            $contents = $builder();
-            
-            $this->set($id, $contents);
-        }
-        
-        return $contents;
+    public function getUrl($id) {
+        if(!$this->isValid($id))
+            return false;
+
+        return "cache/$this->base/$id";
     }
-    
+
+    /**
+     * Getter
+     *
+     * @param string $name
+     *
+     * @return string
+     *
+     * @throws UnknownProperty
+     */
+    public function __get($name) {
+        if($name === 'base')
+            return $this->base;
+
+        throw new UnknownProperty($this, $name);
+    }
+
     /**
      * Stringifier
      *

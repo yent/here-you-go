@@ -40,7 +40,7 @@ class Mysql extends Updater {
     protected static function tableExists($table): bool {
         $statement = DBI::prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE (TABLE_SCHEMA = :database) AND (TABLE_NAME = :table)');
         
-        $statement->execute([':database' => '', ':table' => $table]);
+        $statement->execute([':database' => DBI::local()->getDbName(), ':table' => $table]);
         
         return $statement->fetchColumn() === '1';
     }
@@ -116,8 +116,10 @@ class Mysql extends Updater {
             }
         }
 
+        $found_primaries = static::getPrimaries($table);
+
         // drop removed primaries
-        foreach(array_diff(static::getPrimaries($table), $required_primaries) as $column) {
+        foreach(array_diff($found_primaries, $required_primaries) as $column) {
             if (array_key_exists($column, $reverse_map)) {
                 // Column kept, only primary index was removed
                 DBI::exec("ALTER TABLE `$table` MODIFY COLUMN `$column` ".static::columnDefinition($reverse_map[$column]));
@@ -127,11 +129,13 @@ class Mysql extends Updater {
             }
         }
 
-        // drop all primaries and add again
-        $columns = implode(', ', array_map(function($column) {
-            return "`$column`";
-        }, $required_primaries));
-        DBI::exec("ALTER TABLE `$table` DROP PRIMARY KEY, ADD PRIMARY KEY ($columns)");
+        // drop all primaries and add again if any differences
+        if(array_diff($found_primaries, $required_primaries) || array_diff($required_primaries, $found_primaries)) {
+            $columns = implode(', ', array_map(function($column) {
+                return "`$column`";
+            }, $required_primaries));
+            DBI::exec("ALTER TABLE `$table` DROP PRIMARY KEY, ADD PRIMARY KEY ($columns)");
+        }
 
         // check indexes
         $found_indexes = self::getIndexes($table);
@@ -258,8 +262,7 @@ class Mysql extends Updater {
      * @return string[]
      */
     protected static function getPrimaries($table) {
-        $statement = DBI::prepare("SHOW INDEX FROM :table WHERE Key_name = 'PRIMARY'");
-        $statement->execute([':table' => $table]);
+        $statement = DBI::query("SHOW INDEX FROM `$table` WHERE Key_name = 'PRIMARY'");
 
         return array_map(function(array $row) {
             return $row['Column_name'];
@@ -274,8 +277,7 @@ class Mysql extends Updater {
      * @return array
      */
     protected static function getIndexes($table) {
-        $statement = DBI::prepare("SHOW INDEX FROM :table WHERE Key_name != 'PRIMARY'");
-        $statement->execute([':table' => $table]);
+        $statement = DBI::query("SHOW INDEX FROM `$table` WHERE Key_name != 'PRIMARY'");
 
         $indexes = [];
 

@@ -19,8 +19,12 @@ $conf['db'] = [
 
 $conf['available_locales'] = ['en'];
 
-$conf['base_url'] = 'https://'.$_SERVER['SERVER_NAME'].'/';
-$conf['nice_urls'] = true;
+
+$conf['web'] = [
+    'base_url' => 'https://'.$_SERVER['SERVER_NAME'].'/',
+    'nice_urls' => true,
+    'cache_path' => '',
+];
 
 $conf['lang'] = [
     'default' => 'en',

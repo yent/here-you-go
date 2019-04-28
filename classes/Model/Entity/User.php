@@ -83,6 +83,40 @@ class User extends Entity {
     }
 
     /**
+     * User constructor.
+     *
+     * @param string $id
+     * @param string $email
+     * @param string $name
+     *
+     * @throws BadType
+     * @throws Broken
+     * @throws NotFound
+     * @throws ReflectionException
+     */
+    public function __construct($id, $email, $name = '') {
+        if(!$id)
+            throw new BadType($id, 'user id');
+
+        if(count(self::all('id = :id', [':id' => $id])))
+            throw new BadType($id, 'user id already in use');
+
+        $this->id = $id;
+
+        if(!$email ||!filter_var($email, FILTER_VALIDATE_EMAIL))
+            throw new BadType($email, 'email');
+
+        $this->email = $email;
+
+        if(!$name)
+            $name = substr($email, 0, strpos($email, '@'));
+
+        $this->name = $name;
+
+        $this->save();
+    }
+
+    /**
      * Getter
      *
      * @param string $name

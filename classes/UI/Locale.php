@@ -10,11 +10,15 @@
 namespace HereYouGo\UI;
 
 
+use Exception;
 use HereYouGo\Config;
 use HereYouGo\Converter\JSON;
 use HereYouGo\Converter\JSON\Exception\UnableToDecode;
 use HereYouGo\Converter\JSON\Exception\UnableToEncode;
 use HereYouGo\Exception\BadType;
+use HereYouGo\UI\Exception\CouldNotCreateCache;
+use HereYouGo\UI\Exception\CouldNotReadCache;
+use HereYouGo\UI\Exception\CouldNotWriteCache;
 
 /**
  * Class Locale
@@ -38,17 +42,17 @@ class Locale {
      */
     public static function getAvailable() {
         if(!self::$available) {
-            $locations = ['locales/', 'config/locales/'];
+            $locations = [HYG_ROOT.'locales/', HYG_CONFIG.'locales/'];
             $available = [];
             
             foreach($locations as $location) {
-                if(!is_dir(HYG_ROOT.$location)) continue;
+                if(!is_dir($location)) continue;
                 
-                foreach(scandir(HYG_ROOT.$location) as $id) {
+                foreach(scandir($location) as $id) {
                     if($id{0} === '.') continue;
-                    if(!is_dir(HYG_ROOT.$location.'/'.$id)) continue;
-                    if(!file_exists(HYG_ROOT.$location.'/'.$id.'/name')) continue;
-                    $available[$id] = trim(file_get_contents(HYG_ROOT.$location.'/'.$id.'/name'));
+                    if(!is_dir("$location/$id")) continue;
+                    if(!file_exists("$location/$id/name")) continue;
+                    $available[$id] = trim(file_get_contents("$location/$id/name"));
                 }
             }
             
@@ -128,7 +132,7 @@ class Locale {
                      * $add_to_stack(Auth::user()->locale);
                      * }
                      */
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                 }
         
                 if (Config::get('lang.use_browser') && array_key_exists('HTTP_ACCEPT_LANGUAGE', $_SERVER)) {
@@ -158,6 +162,10 @@ class Locale {
 
     /**
      * Compile dictionary
+     *
+     * @throws CouldNotCreateCache
+     * @throws CouldNotReadCache
+     * @throws CouldNotWriteCache
      */
     private static function compileDictionary() {
         if(!self::$dictionary) {
@@ -178,27 +186,27 @@ class Locale {
                 while($codes) {
                     $code = array_pop($codes);
                     
-                    $locations = ["locales/$code/", "config/locales/$code/"];
+                    $locations = [HYG_ROOT."locales/$code", HYG_CONFIG."locales/$code"];
                     foreach($locations as $location) {
-                        if(!is_dir(HYG_ROOT.$location)) continue;
+                        if(!is_dir($location)) continue;
 
-                        if(file_exists(HYG_ROOT.$location.'translations.json')) {
+                        if(file_exists("$location/translations.json")) {
                             try {
                                 self::$dictionary = array_merge_recursive(
                                     self::$dictionary,
-                                    JSON::decode(file_get_contents(HYG_ROOT.$location.'translations.json'))
+                                    JSON::decode(file_get_contents("$location/translations.json"))
                                 );
 
                             } catch (UnableToDecode $e) {
                             }
                         }
                         
-                        foreach(scandir(HYG_ROOT.$location) as $item) {
+                        foreach(scandir($location) as $item) {
                             if($item{0} === '.') continue;
-                            if(!is_file(HYG_ROOT.$location.$item)) continue;
+                            if(!is_file("$location/$item")) continue;
                             if(!preg_match('`^(.+)\.(html?|txt)$`', $item, $match)) continue;
                             
-                            self::$dictionary[$match[1]] = trim(file_get_contents(HYG_ROOT.$location.$item));
+                            self::$dictionary[$match[1]] = trim(file_get_contents("$location/$item"));
                         }
                     }
                 }
@@ -214,6 +222,10 @@ class Locale {
      * Get compiled dictionary
      *
      * @return string[]
+     *
+     * @throws CouldNotCreateCache
+     * @throws CouldNotReadCache
+     * @throws CouldNotWriteCache
      */
     public static function getDictionary() {
         self::compileDictionary();
@@ -227,6 +239,10 @@ class Locale {
      * @param string $id
      *
      * @return string|null
+     *
+     * @throws CouldNotCreateCache
+     * @throws CouldNotReadCache
+     * @throws CouldNotWriteCache
      */
     private static function getTranslation($id) {
         self::compileDictionary();
@@ -253,6 +269,9 @@ class Locale {
      * @return Translation
      *
      * @throws BadType
+     * @throws CouldNotCreateCache
+     * @throws CouldNotReadCache
+     * @throws CouldNotWriteCache
      */
     public static function translate($id) {
         $translation = self::getTranslation($id);
@@ -268,6 +287,9 @@ class Locale {
      * @return Translation
      *
      * @throws BadType
+     * @throws CouldNotCreateCache
+     * @throws CouldNotReadCache
+     * @throws CouldNotWriteCache
      */
     public static function tr($id) {
         return self::translate($id);
@@ -279,6 +301,10 @@ class Locale {
      * @param string $id
      *
      * @return bool
+     *
+     * @throws CouldNotCreateCache
+     * @throws CouldNotReadCache
+     * @throws CouldNotWriteCache
      */
     public static function isTranslatable($id) {
         return !is_null(self::getTranslation($id));

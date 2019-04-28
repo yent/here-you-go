@@ -126,7 +126,7 @@ class DBI {
         
         $dsn = self::getDsn($conf);
 
-        if(preg_match('`(?:^|;)dbanme=(.+)(?:;.+|$)`', $dsn, $match))
+        if(preg_match('`(?:^|;)dbname=(.+)(?:;.+|$)`', $dsn, $match))
             $this->db_name = $match[1];
 
         $user = array_key_exists('user', $conf) ? $conf['user'] : '';

@@ -57,7 +57,7 @@ abstract class Updater {
         }
 
         foreach($many_to_many as $classes)
-            self::checkrelationTable($classes);
+            self::checkRelationTable($classes);
     }
 
     /**

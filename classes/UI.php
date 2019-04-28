@@ -17,7 +17,7 @@ class UI {
      * @return string
      */
     public static function currentUrl() {
-        $base_url = Config::get('base_url');
+        $base_url = Config::get('web.base_url');
 
         $path = Request::getPath();
 
@@ -27,7 +27,7 @@ class UI {
             return $k.'='.urlencode($v);
         }, array_keys($args), array_values($args)));
 
-        if(Config::get('nice_urls')) {
+        if(Config::get('web.nice_urls')) {
             return $base_url.$path.($args ? "?$args" : '');
 
         } else {
@@ -43,13 +43,13 @@ class UI {
      */
     public static function redirect($target, $external = false) {
         if(!$external) {
-            if(!Config::get('nice_urls')) {
+            if(!Config::get('web.nice_urls')) {
                 $target = explode('?', $target);
                 $target[0] = 'path='.$target[0];
                 $target = 'index.php?'.implode('&', $target);
             }
 
-            $target = Config::get('base_url').$target;
+            $target = Config::get('web.base_url').$target;
         }
 
         header("Location: $target");

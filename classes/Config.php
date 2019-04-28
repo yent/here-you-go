@@ -18,8 +18,8 @@ use HereYouGo\Config\Deferred;
 class Config {
     const DEFAULTS = [];
 
-    const PROTECTED = HYG_ROOT.'config/protected.php';
-    const OVERRIDES = HYG_ROOT.'config/overrides.json';
+    const PROTECTED = HYG_CONFIG.'protected.php';
+    const OVERRIDES = HYG_CONFIG.'overrides.json';
 
     /** @var array */
     private static $parameters = [];

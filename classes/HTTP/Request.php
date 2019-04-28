@@ -128,7 +128,7 @@ class Request {
             self::$method = strtolower($_SERVER[$k]);
         }
 
-        if(Config::get('nice_urls')) {
+        if(Config::get('web.nice_urls')) {
             if(array_key_exists('PATH_INFO', $_SERVER))
                 self::$path = $_SERVER['PATH_INFO'];
 

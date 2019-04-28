@@ -8,6 +8,8 @@ use HereYouGo\Config;
 use HereYouGo\Converter\JSON;
 use HereYouGo\Event;
 use HereYouGo\Exception\FileNotFound;
+use HereYouGo\UI\Exception\CouldNotCreateCache;
+use HereYouGo\UI\Exception\CouldNotWriteCache;
 
 /**
  * Class Resource
@@ -37,6 +39,9 @@ class Resource {
      * @param string $type
      *
      * @return string[]
+     *
+     * @throws CouldNotCreateCache
+     * @throws CouldNotWriteCache
      */
     public static function gather($type) {
         $cache = new Cache('resources');
@@ -45,7 +50,7 @@ class Resource {
         $debug = Config::get('debug');
 
         if($cache->isValid($id) && !$debug)
-            return ["cache/resources/$id"];
+            return [$cache->getUrl($id)];
 
         $files = (new Event("libraries_$type"))->trigger(function() use($type) {
             return array_map(function($file) {
@@ -94,7 +99,7 @@ class Resource {
 
         $cache->set($id, $packed);
 
-        return ["cache/resources/$id"];
+        return [$cache->getUrl($id)];
     }
 
     /**

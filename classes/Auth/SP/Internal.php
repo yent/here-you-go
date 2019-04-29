@@ -3,11 +3,13 @@
 namespace HereYouGo\Auth\SP;
 
 use HereYouGo\Auth;
+use HereYouGo\Config;
 use HereYouGo\Exception\BadType;
 use HereYouGo\Model\Entity\User;
 use HereYouGo\Model\Exception\Broken;
 use HereYouGo\Model\Exception\NotFound;
 use HereYouGo\UI;
+use HereYouGo\UI\Page;
 use ReflectionException;
 use HereYouGo\Auth\SP\Internal\States;
 
@@ -82,12 +84,33 @@ class Internal extends Auth {
      * Trigger logout process (if any)
      *
      * @return string
-     *
-     * @throws UI\Exception\TemplateNotFound
      */
     public static function doLogout() {
         unset($_SESSION['user']);
 
         return new UI\Page('logged-out');
+    }
+
+    /**
+     * Check if auth backend allows new user registration
+     *
+     * @return bool
+     */
+    public static function canRegister() {
+        return Config::get('auth.sp.register.enabled');
+    }
+
+    /**
+     * Trigger registration process (if any)
+     *
+     * @return void|string|Page
+     *
+     * @throws Auth\Exception\RegistrationDisabled
+     */
+    public static function doRegister() {
+        if(!static::canRegister())
+            throw new Auth\Exception\RegistrationDisabled();
+
+
     }
 }

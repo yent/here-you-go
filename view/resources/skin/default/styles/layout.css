@@ -5,11 +5,11 @@
  *
  */
 
-nav {
-    background-color: #34ce57;
+html, body {
+    height: 100%;
 }
 
 main {
     padding: .5rem;
-    min-height: calc(100% - 15rem);
+    height: calc(100% - 7rem);
 }

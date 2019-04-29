@@ -5,6 +5,10 @@
  *
  */
 
+main[data-page="internal-login"] form {
+    margin-top: 5rem;
+}
+
 main[data-page="internal-login"] label {
     display: none;
 }

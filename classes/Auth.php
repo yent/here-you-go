@@ -8,6 +8,7 @@ use HereYouGo\Auth\Exception\UnknownSP;
 use HereYouGo\Auth\LocalUser;
 use HereYouGo\Auth\Remote;
 use HereYouGo\Model\Entity\User;
+use HereYouGo\UI\Page;
 use ReflectionException;
 use HereYouGo\Auth\MissingAttribute;
 
@@ -118,4 +119,20 @@ abstract class Auth {
      * Trigger logout process (if any)
      */
     public static function doLogout() {}
+
+    /**
+     * Check if auth backend allows new user registration
+     *
+     * @return bool
+     */
+    public static function canRegister() {
+        return false;
+    }
+
+    /**
+     * Trigger registration process (if any)
+     *
+     * @return void|string|Page
+     */
+    public static function doRegister() {}
 }

@@ -10,6 +10,12 @@ $title = Config::get('application_name');
 if(Locale::isTranslatable($page->id.'_page'))
     $title .= ($title ? ' - ' : '').Locale::translate($page->id.'.page');
 
+$nav_active = function($id) use($page) {
+    return ($id === $page->id) ? 'active' : '';
+};
+
+$user = Auth::getUser();
+
 ?><!DOCTYPE html>
 <html>
     <head>
@@ -34,17 +40,19 @@ if(Locale::isTranslatable($page->id.'_page'))
 
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item"><a class="nav-link" href="#"><span class="fas fa-folder-open"></span> Load</a></li>
-
-                <?php if(Auth::getSP()) { ?>
-                    <li class="nav-item">
-                        <?php if(Auth::getUser()) { ?>
-                            <a class="nav-link" href="{url:/log-out}">{tr:auth.log-out}</a>
-                        <?php } else { ?>
-                            <a class="nav-link" href="{url:/log-in}">{tr:auth.log-in}</a>
-                        <?php } ?>
-                    </li>
-                <?php } ?>
             </ul>
+
+            <?php if(Auth::getSP()) { ?>
+            <ul class="navbar-nav">
+                <li class="nav-item <?php echo $nav_active($user ? 'log-out' : 'log-in') ?>">
+                    <?php if($user) { ?>
+                        <a class="nav-link" href="{url:/log-out}">{tr:auth.log-out}</a>
+                    <?php } else { ?>
+                        <a class="nav-link" href="{url:/log-in}">{tr:auth.log-in}</a>
+                    <?php } ?>
+                </li>
+            </ul>
+            <?php } ?>
         </nav>
 
         <main data-page="<?php echo $page->id ?>">

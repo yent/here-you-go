@@ -11,6 +11,7 @@ namespace HereYouGo\UI;
 
 
 use HereYouGo\Exception\BadType;
+use HereYouGo\Logger;
 
 /**
  * Class Translation
@@ -33,19 +34,23 @@ class Translation {
      * @param string $id
      * @param string|array $contents
      * @param bool $not_found
-     *
-     * @throws BadType
      */
     public function __construct($id, $contents, $not_found = false) {
         $this->id = $id;
-        
-        if(!is_string($contents) && !is_array($contents))
-            throw new BadType($contents, 'string or array');
-        
-        $this->contents = is_array($contents) ? array_map(function($sub) {
-            return new self(null, $sub);
-        }, $contents) : $contents;
-        
+
+        if(is_string($contents)) {
+            $this->contents = $contents;
+
+        } else if(is_array($contents)) {
+            $this->contents = array_map(function($sub) {
+                return new self(null, $sub);
+            }, $contents);
+
+        } else {
+            Logger::warn(self::class.' content is neither string nor array');
+            $not_found = true;
+        }
+
         $this->not_found = $not_found;
     }
     

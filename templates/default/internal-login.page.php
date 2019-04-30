@@ -5,7 +5,11 @@ use HereYouGo\UI\Locale;
 /** @var string $state */
 /** @var string $target */
 
-?>
+$form = new \HereYouGo\Auth\SP\Internal\Form\LogIn($target, $state);
+
+echo $form->getHtml();
+
+/*
 <form class="col-md-2 offset-md-5" method="post" action="">
     <input type="hidden" value="<?php echo $target ?>" />
 
@@ -37,3 +41,5 @@ use HereYouGo\UI\Locale;
         <button type="submit" class="btn btn-primary">{tr:auth.log-in}</button>
     </div>
 </form>
+
+*/

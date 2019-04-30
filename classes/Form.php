@@ -7,7 +7,9 @@ namespace HereYouGo;
 use HereYouGo\Exception\BadType;
 use HereYouGo\Exception\UnknownProperty;
 use HereYouGo\Form\Control;
+use HereYouGo\Form\DataHolder;
 use HereYouGo\Form\Field;
+use HereYouGo\Form\FieldSet;
 use HereYouGo\Form\Fragment;
 
 /**
@@ -17,15 +19,12 @@ use HereYouGo\Form\Fragment;
  *
  * @property-read string $name
  */
-class Form extends Fragment {
+class Form extends FieldSet {
     /** @var string */
-    private $name = '';
-
-    /** @var (Field|string)[] */
-    private $fields = [];
+    protected $name = '';
 
     /** @var (Control|string)[] */
-    private $controls = [];
+    protected $controls = [];
 
     /**
      * Form constructor.
@@ -33,62 +32,36 @@ class Form extends Fragment {
      * @param string $name
      * @param array $fields
      * @param array $controls
+     *
      * @throws BadType
      */
     public function __construct($name, array $fields = [], array $controls = []) {
-        parent::__construct('form', ['data-name' => $name, 'method' => 'post', 'action' => '']);
+        parent::__construct($fields);
+
+        $this->tag = 'form';
+        $this->addAttributes(['data-name' => $name, 'method' => 'post', 'action' => ''], false);
 
         $this->name = $name;
-
-        foreach($fields as $field)
-            $this->addField($field);
 
         foreach($controls as $control)
             $this->addControl($control);
     }
 
     /**
-     * Add component
-     *
-     * @param string $type
-     * @param Fragment|string $thing
-     *
-     * @throws BadType
-     */
-    private function add($type, $thing) {
-        if(!in_array($type, ['field', 'control']))
-            throw new BadType('type', '"fields" or "controls"');
-
-        if(!($thing instanceof Fragment) && !is_string($thing))
-            throw new BadType($type, Fragment::class.' or string');
-
-        if($thing instanceof Fragment)
-            $thing->parent = $this;
-
-        $type .= 's';
-        $this->{$type}[] = $thing;
-    }
-
-    /**
-     * Add field to set
-     *
-     * @param Fragment|string $field
-     *
-     * @throws BadType
-     */
-    public function addField($field) {
-        $this->add('field', $field);
-    }
-
-    /**
      * Add control to set
      *
-     * @param Fragment|string $control
+     * @param Control|string $control
      *
      * @throws BadType
      */
     public function addControl($control) {
-        $this->add('control', $control);
+        if(!($control instanceof Fragment) && !is_string($control))
+            throw new BadType('control', Fragment::class.' or string');
+
+        if($control instanceof Fragment)
+            $control->parent = $this;
+
+        $this->controls[] = $control;
     }
 
     /**
@@ -96,15 +69,15 @@ class Form extends Fragment {
      *
      * @return string
      */
-    public function getHtml() {
-        return parent::render(function() {
+    public function getHtml(): string {
+        return parent::wrap(function() {
             $html = '';
 
             foreach($this->fields as $field)
-                $html .= ($field instanceof Field) ? $field->getHtml() : (string)$field;
+                $html .= ($field instanceof DataHolder) ? $field->getHtml() : (string)$field;
 
             if($this->controls) {
-                $html .= (new Fragment('div', ['class' => 'form-row justify-content-center'], $this))->render(function() {
+                $html .= (new Fragment('div', ['class' => 'form-row justify-content-center'], $this))->wrap(function() {
                     $html = '';
 
                     foreach($this->controls as $control)
@@ -131,6 +104,6 @@ class Form extends Fragment {
         if(in_array($name, ['name']))
             return $this->$name;
 
-        throw new UnknownProperty($this, $name);
+        return parent::__get($name);
     }
 }

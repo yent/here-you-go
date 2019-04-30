@@ -162,20 +162,24 @@ class Locale {
 
     /**
      * Compile dictionary
-     *
-     * @throws CouldNotCreateCache
-     * @throws CouldNotReadCache
-     * @throws CouldNotWriteCache
      */
     private static function compileDictionary() {
         if(!self::$dictionary) {
             $codes = self::getCodes();
-            $cache = new Cache('locales');
+            try {
+                $cache = new Cache('locales');
+            } catch(CouldNotCreateCache $e) {
+                $cache = null;
+            }
             
             $id = implode('-', $codes);
-            if($cache->isValid($id) && !Config::get('debug')) {
+            if($cache && $cache->isValid($id) && !Config::get('debug')) {
                 try {
                     self::$dictionary = JSON::decode($cache->get($id));
+
+                } catch(CouldNotReadCache $e) {
+                    self::$dictionary = null;
+
                 } catch (UnableToDecode $e) {
                     self::$dictionary = null;
                 }
@@ -213,7 +217,8 @@ class Locale {
                 
                 try {
                     $cache->set($id, JSON::encode(self::$dictionary));
-                } catch(UnableToEncode $e) {}
+                } catch(UnableToEncode $e) {
+                } catch(CouldNotWriteCache $e) {}
             }
         }
     }
@@ -222,10 +227,6 @@ class Locale {
      * Get compiled dictionary
      *
      * @return string[]
-     *
-     * @throws CouldNotCreateCache
-     * @throws CouldNotReadCache
-     * @throws CouldNotWriteCache
      */
     public static function getDictionary() {
         self::compileDictionary();
@@ -239,10 +240,6 @@ class Locale {
      * @param string $id
      *
      * @return string|null
-     *
-     * @throws CouldNotCreateCache
-     * @throws CouldNotReadCache
-     * @throws CouldNotWriteCache
      */
     private static function getTranslation($id) {
         self::compileDictionary();
@@ -267,11 +264,6 @@ class Locale {
      * @param string $id
      *
      * @return Translation
-     *
-     * @throws BadType
-     * @throws CouldNotCreateCache
-     * @throws CouldNotReadCache
-     * @throws CouldNotWriteCache
      */
     public static function translate($id) {
         $translation = self::getTranslation($id);
@@ -285,11 +277,6 @@ class Locale {
      * @param string $id
      *
      * @return Translation
-     *
-     * @throws BadType
-     * @throws CouldNotCreateCache
-     * @throws CouldNotReadCache
-     * @throws CouldNotWriteCache
      */
     public static function tr($id) {
         return self::translate($id);
@@ -301,10 +288,6 @@ class Locale {
      * @param string $id
      *
      * @return bool
-     *
-     * @throws CouldNotCreateCache
-     * @throws CouldNotReadCache
-     * @throws CouldNotWriteCache
      */
     public static function isTranslatable($id) {
         return !is_null(self::getTranslation($id));

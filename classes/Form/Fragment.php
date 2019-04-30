@@ -12,17 +12,19 @@ use HereYouGo\Exception\UnknownProperty;
  *
  * @property-read string $tag
  * @property string[] $attributes
- * @property Fragment $parent
+ * @property Fragment|DataHolder $parent
  */
 class Fragment {
+    const CONTENT_LESS = ['input'];
+
     /** @var string */
-    private $tag = '';
+    protected $tag = '';
 
     /** @var string[] */
-    private $attributes = [];
+    protected $attributes = [];
 
-    /** @var self */
-    private $parent = null;
+    /** @var self|DataHolder */
+    protected $parent = null;
 
     /**
      * Fragment constructor.
@@ -39,24 +41,61 @@ class Fragment {
     }
 
     /**
-     * Generate HTML
+     * Add attributes to the set
+     *
+     * @param array $attributes
+     * @param string|bool $concat_if_exists
+     */
+    public function addAttributes(array $attributes, $concat_if_exists = true) {
+        foreach($attributes as $k => $v) {
+            if(array_key_exists($k, $this->attributes)) {
+                if(strpos($this->attributes[$k], $v) !== false)
+                    continue;
+
+                if($concat_if_exists !== false) {
+                    $this->attributes[$k] .= (is_string($concat_if_exists) ? $concat_if_exists : ' ').$v;
+                } else {
+                    $this->attributes[$k] = $v;
+                }
+
+            } else {
+                $this->attributes[$k] = $v;
+            }
+        }
+    }
+
+    /**
+     * Wrap content in own tag
      *
      * @param string|callable $content
      *
      * @return string
      */
-    public function render($content) {
+    protected function wrap($content = '') {
         $attributes = implode(' ', array_map(function($k, $v) {
             return $k.'='.htmlspecialchars($v);
         }, array_keys($this->attributes), array_values($this->attributes)));
 
-        $html = "<$this->tag $attributes>";
+        $end = in_array($this->tag, self::CONTENT_LESS) ? '/' : '';
 
-        $html .= is_callable($content) ? $content() : $content;
+        $html = "<$this->tag $attributes $end>";
 
-        $html .= "</$this->tag>";
+        if(!$end) {
+            $html .= is_callable($content) ? $content() : $content;
+
+            $html .= "</$this->tag>";
+        }
 
         return $html;
+    }
+
+    /**
+     * Get Html
+     *
+     * @return string
+     */
+    public function getHtml() {
+        return $this->wrap('');
     }
 
     /**

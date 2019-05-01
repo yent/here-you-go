@@ -15,7 +15,7 @@ use ReflectionException;
 /**
  * Class Authenticated
  *
- * @package HereYouGo\Auth\Profile
+ * @package HereYouGo\Backend\Profile
  */
 class Authenticated extends Profile {
     /**

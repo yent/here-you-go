@@ -29,6 +29,7 @@ class User extends Endpoint {
      */
     public static function init() {
         Router::addRoute('get', '/user/@me', null, self::class.'::getCurrent');
+        Router::addRoute('post', '/user/@me', null, self::class.'::authenticate');
         Router::addRoute('post', '/user', null, self::class.'::register');
     }
 
@@ -52,16 +53,17 @@ class User extends Endpoint {
      *
      * @return array
      *
-     * @throws Auth\Exception\UnknownSP
+     * @throws Auth\Exception\UnknownBackend
      * @throws Auth\MissingAttribute
-     * @throws BadType
-     * @throws Broken
-     * @throws NotFound
-     * @throws ReflectionException
+     * @throws Auth\Exception\FailedToLoadUser
      */
     public static function getCurrent() {
         $user = Auth::getUser();
         return $user ? self::cast($user) : null;
+    }
+
+    public static function authenticate() {
+
     }
 
     public static function register() {

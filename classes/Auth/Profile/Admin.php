@@ -12,7 +12,7 @@ use HereYouGo\Model\Exception\Broken;
 /**
  * Class Admin
  *
- * @package HereYouGo\Auth\Profile
+ * @package HereYouGo\Backend\Profile
  *
  * @depends Authenticated
  */

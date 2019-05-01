@@ -4,6 +4,7 @@
 namespace HereYouGo\Model\Entity;
 
 
+use HereYouGo\Auth\MissingAttribute;
 use HereYouGo\Auth\Profile;
 use HereYouGo\Exception\BadEmail;
 use HereYouGo\Exception\BadType;
@@ -21,7 +22,7 @@ use ReflectionException;
  * @property-read string $id
  * @property string $email
  * @property string $name
- * @property string $auth_args
+ * @property string $auth
  */
 class User extends Entity {
     /** @var string @db size=64 primary */
@@ -33,8 +34,8 @@ class User extends Entity {
     /** @var string @db size=128 */
     protected $name = '';
 
-    /** @var string @db size=128 */
-    protected $auth_args = '';
+    /** @var mixed|array @db type=text convert=JSON */
+    protected $auth = [];
 
     /**
      * @param Profile $profile
@@ -54,14 +55,17 @@ class User extends Entity {
      *
      * @return self
      *
-     * @throws Broken
-     * @throws ReflectionException
+     * @throws BadEmail
      * @throws BadType
+     * @throws Broken
      * @throws NotFound
+     * @throws ReflectionException
+     * @throws UnknownProperty
+     * @throws MissingAttribute
      */
-    public static function fromAuthAttributes($attributes) {
+    public static function fromAttributes($attributes) {
         if(!array_key_exists('id', $attributes))
-            throw new Broken(static::class, "missing id key");
+            throw new MissingAttribute('id');
 
         /** @var self $user */
         $user = self::fromPrimaryKey(['id' => $attributes['id']]);
@@ -70,8 +74,8 @@ class User extends Entity {
         foreach($attributes as $attribute => $value) {
             if($attribute === 'id') continue;
 
-            if($value !== $user->$attribute) {
-                $user->$attribute = $value;
+            if($value !== $user->__get($attribute)) {
+                $user->__set($attribute, $value);
                 $changed = true;
             }
         }
@@ -103,7 +107,7 @@ class User extends Entity {
 
         $this->id = $id;
 
-        if(!$email ||!filter_var($email, FILTER_VALIDATE_EMAIL))
+        if(!$email || !filter_var($email, FILTER_VALIDATE_EMAIL))
             throw new BadType($email, 'email');
 
         $this->email = $email;
@@ -130,7 +134,7 @@ class User extends Entity {
      * @throws UnknownProperty
      */
     public function __get($name) {
-        if(in_array($name, ['id', 'email', 'name', 'auth_args']))
+        if(in_array($name, ['id', 'email', 'name', 'auth']))
             return $this->$name;
 
         return parent::__get($name);
@@ -160,8 +164,8 @@ class User extends Entity {
         } else if($name === 'name') {
             $this->name = (string)$value;
 
-        } else if($name === 'auth_args') {
-            $this->auth_args = (string)$value;
+        } else if($name === 'auth') {
+            $this->auth_args = $value;
 
         } else {
             parent::__set($name, $value);

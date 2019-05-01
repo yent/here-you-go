@@ -42,7 +42,7 @@ try {
     $sp = Auth::getSP();
     if(array_key_exists('a', $options)) {
         switch(substr($sp, strrpos($sp, '\\'))) {
-            case 'Internal': $user->auth_args = Password::hash($options['a']); break;
+            case 'Embedded': $user->auth_args = Password::hash($options['a']); break;
         }
     }
 

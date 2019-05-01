@@ -9,7 +9,7 @@ use HereYouGo\Exception\Detailed;
 /**
  * Class PasswordHashingFailed
  *
- * @package HereYouGo\Auth\Exception
+ * @package HereYouGo\Backend\Exception
  */
 class PasswordHashingFailed extends Detailed {
     /**

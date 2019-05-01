@@ -13,7 +13,7 @@ namespace HereYouGo\REST\Response;
 use HereYouGo\Exception\UnknownProperty;
 
 /**
- * Class Base
+ * Class Backend
  *
  * @package HereYouGo\REST\Response
  */

@@ -1088,7 +1088,7 @@
   };
 
   /**
-   * Internal helper to bind a function known to have 4 arguments
+   * Plain helper to bind a function known to have 4 arguments
    * to a given context.
    */
 

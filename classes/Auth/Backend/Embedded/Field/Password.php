@@ -1,7 +1,7 @@
 <?php
 
 
-namespace HereYouGo\Auth\SP\Internal\Form\Field;
+namespace HereYouGo\Auth\Backend\Embedded\Field;
 
 
 use HereYouGo\Form\Constraint\Required;
@@ -12,14 +12,14 @@ use HereYouGo\UI\Locale;
 /**
  * Class Password
  *
- * @package HereYouGo\Auth\SP\Internal\Form\Field
+ * @package HereYouGo\Backend\Backend\Embedded\Field
  */
 class Password extends PasswordField {
     /**
      * Password constructor.
      */
     public function __construct() {
-        parent::__construct('password', Locale::translate('auth.internal-login.password'), new ConstraintCollection([
+        parent::__construct('password', Locale::translate('auth.embedded.password'), new ConstraintCollection([
             new Required()
         ]));
     }

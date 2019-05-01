@@ -5,7 +5,7 @@
     "log-out": "Log-out",
     "logged-out": "You have been successfully logged-out"
   },
-  "internal-login": {
+  "embedded": {
     "login": "Login",
     "password": "Password",
     "page": "Authentication",

@@ -4,6 +4,7 @@ namespace HereYouGo\Form;
 
 use HereYouGo\Exception\BadType;
 use HereYouGo\Exception\UnknownProperty;
+use HereYouGo\Form;
 
 /**
  * Class Fragment
@@ -13,6 +14,7 @@ use HereYouGo\Exception\UnknownProperty;
  * @property-read string $tag
  * @property string[] $attributes
  * @property Fragment|DataHolder $parent
+ * @property Form $form
  */
 class Fragment {
     const CONTENT_LESS = ['input'];
@@ -94,7 +96,7 @@ class Fragment {
      *
      * @return string
      */
-    public function getHtml() {
+    public function getHtml():string {
         return $this->wrap('');
     }
 
@@ -110,6 +112,9 @@ class Fragment {
     public function __get($name) {
         if(in_array($name, ['tag', 'attributes', 'parent']))
             return $this->$name;
+
+        if($name === 'form')
+            return ($this instanceof Form) ? $this : $this->parent;
 
         throw new UnknownProperty($this, $name);
     }

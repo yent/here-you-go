@@ -9,7 +9,7 @@ use HereYouGo\Auth\Exception\PasswordHashingFailed;
 /**
  * Class Password
  *
- * @package HereYouGo\Auth
+ * @package HereYouGo\Backend
  */
 class Password {
     /**

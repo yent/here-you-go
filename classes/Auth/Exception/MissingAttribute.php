@@ -9,7 +9,7 @@ use HereYouGo\Exception\Detailed;
 /**
  * Class MissingAttribute
  *
- * @package HereYouGo\Auth
+ * @package HereYouGo\Backend
  */
 class MissingAttribute extends Detailed {
     /**

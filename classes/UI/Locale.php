@@ -115,9 +115,9 @@ class Locale {
                             if ($code) {
                                 if (isset($_SESSION)) $_SESSION['locale'] = $code;
                                 /** TODO
-                                 * if(Config::get('lang.save_user_pref') && Auth::isAuthenticated()) {
-                                 * Auth::user()->locale = $code;
-                                 * Auth::user()->save();
+                                 * if(Config::get('lang.save_user_pref') && Backend::isAuthenticated()) {
+                                 * Backend::user()->locale = $code;
+                                 * Backend::user()->save();
                                  * }
                                  */
                             }
@@ -128,8 +128,8 @@ class Locale {
                     }
             
                     /** TODO
-                     * if(Config::get('lang.use_user_pref') && Auth::isAuthenticated()) {
-                     * $add_to_stack(Auth::user()->locale);
+                     * if(Config::get('lang.use_user_pref') && Backend::isAuthenticated()) {
+                     * $add_to_stack(Backend::user()->locale);
                      * }
                      */
                 } catch (Exception $e) {

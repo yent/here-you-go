@@ -9,7 +9,7 @@ use HereYouGo\Exception\Detailed;
 /**
  * Class RegistrationDisabled
  *
- * @package HereYouGo\Auth\Exception
+ * @package HereYouGo\Backend\Exception
  */
 class RegistrationDisabled extends Detailed {
     /**

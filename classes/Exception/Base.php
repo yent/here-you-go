@@ -21,7 +21,7 @@ abstract class Base extends Exception {
     private $id = '';
 
     /**
-     * Base constructor.
+     * Backend constructor.
      *
      * @param string $message
      * @param int $code

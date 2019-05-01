@@ -4,21 +4,28 @@
 namespace HereYouGo\Auth;
 
 
-use HereYouGo\Auth;
-
 /**
  * Class Remote
  *
- * @package HereYouGo\Auth
+ * @package HereYouGo\Backend
  */
-class Remote extends Auth {
+class Remote extends Backend {
+    /**
+     * Remote backend constructor.
+     *
+     * @param array $config
+     */
+    public function __construct(array $config = []) {
+        // TODO
+    }
+
     /**
      * Check if any user logged-in
      *
      * @return bool
      */
-    public static function hasUser(): bool {
-        // TODO: Implement hasUser() method.
+    public function hasIdentity(): bool {
+        // TODO: Implement hasIdentity() method.
         return false;
     }
 
@@ -27,7 +34,7 @@ class Remote extends Auth {
      *
      * @return array
      */
-    public static function getAttributes(): array {
+    public function getAttributes(): array {
         // TODO: Implement getAttributes() method.
         return [];
     }

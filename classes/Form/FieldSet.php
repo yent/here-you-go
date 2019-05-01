@@ -7,8 +7,8 @@ namespace HereYouGo\Form;
 use HereYouGo\Exception\BadType;
 use HereYouGo\Form\Exception\ValidationFailed;
 
-class FieldSet extends Fragment implements DataHolder {
-    /** @var Field[] */
+class FieldSet extends Traversable {
+    /** @var (Field|DataHolder|Fragment|string)[] */
     protected $fields = [];
 
     /**
@@ -43,6 +43,31 @@ class FieldSet extends Fragment implements DataHolder {
     }
 
     /**
+     * Find node
+     *
+     * @param string $path
+     *
+     * @return DataHolder|null
+     */
+    public function find($path) {
+        foreach($this->fields as $field) {
+            if($field instanceof Field) {
+                if($field->getPath() === $path)
+                    return $field;
+
+            }
+
+            if($field instanceof Traversable) {
+                $found = $field->find($path);
+                if($found)
+                    return $found;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Build HTML
      *
      * @return string
@@ -74,13 +99,22 @@ class FieldSet extends Fragment implements DataHolder {
             throw new BadType($this->getPath().' data', 'array');
 
         foreach($this->fields as $field) {
-            if(!array_key_exists($field->name, $data) && !$field->hasConstraint('required'))
-                continue;
+            if(!($field instanceof DataHolder)) continue;
 
-            if(!array_key_exists($field->name, $data))
-                throw new ValidationFailed($field, $field->constraints->collection['required']);
+            if($field instanceof Field) {
+                if(!array_key_exists($field->name, $data) && !$field->hasConstraint('required'))
+                    continue;
 
-            $field->validate($data);
+                if(!array_key_exists($field->name, $data))
+                    throw new ValidationFailed($field, $field->constraints->collection['required']);
+
+                $field->validate($data[$field->name]);
+
+                $field->value = $data[$field->name];
+
+            } else {
+                $field->validate($data);
+            }
         }
     }
 

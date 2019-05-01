@@ -9,7 +9,7 @@ use ReflectionException;
 /**
  * Class Profile
  *
- * @package HereYouGo\Auth
+ * @package HereYouGo\Backend
  */
 abstract class Profile {
     /** @var Profile[] */

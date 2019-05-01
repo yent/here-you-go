@@ -3,15 +3,12 @@
 
 namespace HereYouGo\Auth;
 
-
-use HereYouGo\Auth;
-
 /**
  * Class LocalUser
  *
- * @package HereYouGo\Auth
+ * @package HereYouGo\Backend
  */
-class LocalUser extends Auth {
+class LocalUser extends Backend {
     /** @var string[]|null */
     private static $attributes = null;
 

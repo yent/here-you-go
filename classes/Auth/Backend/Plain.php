@@ -3,8 +3,8 @@
 namespace HereYouGo\Auth\SP;
 
 use HereYouGo\Auth;
-use HereYouGo\Config;
 use HereYouGo\Exception\BadType;
+use HereYouGo\Form\FieldSet;
 use HereYouGo\Model\Entity\User;
 use HereYouGo\Model\Exception\Broken;
 use HereYouGo\Model\Exception\NotFound;
@@ -14,17 +14,24 @@ use ReflectionException;
 use HereYouGo\Auth\SP\Internal\States;
 
 /**
- * Class Internal
+ * Class Plain
  *
- * @package HereYouGo\Auth\SP
+ * @package HereYouGo\Backend\Backend
  */
-class Internal extends Auth {
+class Plain extends Embedded {
+    /**
+     * Backend constructor.
+     *
+     * @param array $config
+     */
+    public function __construct(array $config = []) {}
+
     /**
      * Check if any user logged-in
      *
      * @return bool
      */
-    public static function hasUser(): bool {
+    public function hasIdentity(): bool {
         return array_key_exists('user', $_SESSION);
     }
 
@@ -33,7 +40,7 @@ class Internal extends Auth {
      *
      * @return array
      */
-    public static function getAttributes(): array {
+    public function getAttributes(): array {
         return $_SESSION['user'];
     }
 
@@ -44,7 +51,7 @@ class Internal extends Auth {
      * @throws Broken
      * @throws ReflectionException
      */
-    public static function doLogin() {
+    public function triggerLogin() {
         $target = array_key_exists('target', $_REQUEST) ? base64_decode($_REQUEST['target']) : '';
 
         if(array_key_exists('user', $_SESSION))
@@ -85,32 +92,32 @@ class Internal extends Auth {
      *
      * @return string
      */
-    public static function doLogout() {
+    public function triggerLogout() {
         unset($_SESSION['user']);
 
         return new UI\Page('logged-out');
     }
 
     /**
-     * Check if auth backend allows new user registration
-     *
-     * @return bool
-     */
-    public static function canRegister() {
-        return Config::get('auth.sp.register.enabled');
-    }
-
-    /**
      * Trigger registration process (if any)
      *
      * @return void|string|Page
-     *
-     * @throws Auth\Exception\RegistrationDisabled
      */
-    public static function doRegister() {
-        if(!static::canRegister())
-            throw new Auth\Exception\RegistrationDisabled();
+    public function register() {
+        // TODO
+    }
 
-
+    /**
+     * Get login form fragment
+     *
+     * @return FieldSet
+     *
+     * @throws BadType
+     */
+    public function getFields(): FieldSet {
+        return new FieldSet([
+            new Auth\Backend\Embedded\Field\Login(),
+            new Auth\Backend\Embedded\Field\Password()
+        ]);
     }
 }

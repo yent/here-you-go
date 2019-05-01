@@ -4,52 +4,91 @@
 namespace HereYouGo;
 
 
-use HereYouGo\Auth\Exception\UnknownSP;
+use Exception;
+use HereYouGo\Auth\Backend;
+use HereYouGo\Auth\Exception\FailedToLoadUser;
+use HereYouGo\Auth\Exception\RegistrationDisabled;
+use HereYouGo\Auth\Exception\UnknownBackend;
 use HereYouGo\Auth\LocalUser;
 use HereYouGo\Auth\Remote;
+use HereYouGo\Auth\Backend\NewUserPolicy;
+use HereYouGo\Auth\Backend\Triggerable;
 use HereYouGo\Model\Entity\User;
 use HereYouGo\UI\Page;
-use ReflectionException;
 use HereYouGo\Auth\MissingAttribute;
 
 /**
- * Class Auth
+ * Class Backend
  *
  * @package HereYouGo
  */
-abstract class Auth {
+class Auth {
     /** @var User|null */
     private static $user = null;
 
-    /** @var self|string|null */
-    private static $sp = null;
+    /** @var Backend|null */
+    private static $backends = null;
 
     /**
-     * Get configured SP if any
+     * Get configured backends if any
      *
-     * @return Auth|string|null
+     * @return Backend[]
      *
-     * @throws UnknownSP
+     * @throws UnknownBackend
      */
-    public static function getSP() {
-        if(is_null(self::$sp)) {
-            self::$sp = '';
+    public static function getBackends() {
+        if(is_null(self::$backends)) {
+            self::$backends = [];
 
-            $type = Config::get('auth.sp.type');
-            if($type) {
-                $class = 'HereYouGo\\Auth\\SP\\'.ucfirst($type);
+            $config = Config::get('auth.backend');
+            if(array_key_exists('type', $config))
+                $config = [$config];
+
+            foreach($config as $backend) {
+                if(array_key_exists('enabled', $backend) && !$backend['enabled'])
+                    continue;
+
+                if(!array_key_exists('type', $backend))
+                    throw new UnknownBackend('no type');
+
+                $class = $backend['type'];
+                if(strrpos($class, '\\') === false) // default backends, plugins provide full class name
+                    $class = 'HereYouGo\\Auth\\Backend\\'.ucfirst($class);
 
                 if(!Autoloader::exists($class))
-                    throw new UnknownSP($type);
+                    throw new UnknownBackend($backend['type']);
 
-                /** @var self $class */
-                $class::init();
-
-                self::$sp = $class;
+                self::$backends[] = new $class;
             }
         }
 
-        return self::$sp;
+        return self::$backends;
+    }
+
+    /**
+     * Get embeddable backends
+     *
+     * @return Backend\Embedded[]
+     *
+     * @throws UnknownBackend
+     */
+    public static function getEmbeddableBackends() {
+        return array_filter(self::getBackends(), function(Backend $backend) {
+            return $backend instanceof Backend\Embedded;
+        });
+    }
+
+    /**
+     * Get registrable backends
+     *
+     * @return Backend[]
+     *
+     * @throws UnknownBackend
+     */
+    public static function getRegistrableBackends() {
+        return array_filter(self::getBackends(), function(Backend $backend) {
+            return $backend->newUsers() === NewUserPolicy::REGISTER;
+        });
     }
 
     /**
@@ -57,34 +96,40 @@ abstract class Auth {
      *
      * @return User|false
      *
-     * @throws Exception\BadType
-     * @throws Model\Exception\Broken
-     * @throws Model\Exception\NotFound
-     * @throws ReflectionException
      * @throws MissingAttribute
-     * @throws UnknownSP
+     * @throws UnknownBackend
+     * @throws FailedToLoadUser
      */
     public static function getUser() {
         if(is_null(self::$user)) {
             self::$user = false;
 
-            /** @var Auth[] $candidates */
-            $candidates = [LocalUser::class, Remote::class, self::getSP()];
+            $backends = self::getBackends();
 
-            $attributes = [];
-            foreach($candidates as $candidate) {
-                if(!$candidate || !$candidate::hasUser()) continue;
+            // add special backends
+            $remote = Config::get('auth.remote');
+            if($remote && array_key_exists('enabled', $remote) && $remote['enabled'])
+                array_unshift($backends, new Remote($remote));
 
-                $attributes = $candidate::getAttributes();
-                break;
-            }
+            array_unshift($backends, new LocalUser());
 
-            if($attributes) {
-                foreach(Config::get('auth.attributes') as $attribute)
+            foreach($backends as $backend) {
+                if(!$backend->hasIdentity()) continue;
+
+                $attributes = $backend->getAttributes();
+
+                foreach(['id', 'email'] as $attribute)
                     if(!array_key_exists($attribute, $attributes))
                         throw new MissingAttribute($attribute);
 
-                self::$user = User::fromAuthAttributes($attributes);
+                try {
+                    self::$user = User::fromAttributes($attributes);
+
+                } catch(Exception $e) {
+                    throw new FailedToLoadUser($attributes);
+                }
+
+                break;
             }
         }
 
@@ -92,47 +137,54 @@ abstract class Auth {
     }
 
     /**
-     * Init authentication backend (for SPs)
-     */
-    public static function init() {}
-
-    /**
-     * Check if any user logged-in
-     *
-     * @return bool
-     */
-    abstract public static function hasUser(): bool;
-
-    /**
-     * Get current user attributes
-     *
-     * @return array
-     */
-    abstract public static function getAttributes(): array;
-
-    /**
      * Trigger login process (if any)
+     *
+     * @return void|string|Page
+     *
+     * @throws UnknownBackend
      */
-    public static function doLogin() {}
+    public static function logIn() {
+        $backends = self::getBackends();
+
+        if(count($backends) === 1 && ($backends[0] instanceof Triggerable)) {
+            /** @var Triggerable[] $backends */
+            return $backends[0]->logIn();
+        }
+
+        return new Page('log-in');
+    }
 
     /**
      * Trigger logout process (if any)
-     */
-    public static function doLogout() {}
-
-    /**
-     * Check if auth backend allows new user registration
      *
-     * @return bool
+     * @return void|string|Page
+     *
+     * @throws UnknownBackend
      */
-    public static function canRegister() {
-        return false;
+    public static function logOut() {
+        $backends = self::getBackends();
+
+        if(count($backends) === 1 && ($backends[0] instanceof Triggerable)) {
+            /** @var Triggerable[] $backends */
+            return $backends[0]->logOut();
+        }
+
+        return new Page('log-out');
     }
 
     /**
      * Trigger registration process (if any)
      *
      * @return void|string|Page
+     *
+     * @throws UnknownBackend
+     * @throws RegistrationDisabled
      */
-    public static function doRegister() {}
+    public static function register() {
+        $registrable = self::getRegistrableBackends();
+        if(!$registrable)
+            throw new RegistrationDisabled();
+
+        array_shift($registrable)->register();
+    }
 }

@@ -35,9 +35,11 @@ $conf['lang'] = [
 ];
 
 $conf['auth'] = [
-    'sp' => [
-        'type' => 'internal',
-        // further sp config
+    'backend' => [
+        [
+            'type' => 'internal',
+            // further sp config
+        ],
     ],
     'remote' => [
         'enabled' => true,

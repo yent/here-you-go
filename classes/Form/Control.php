@@ -13,6 +13,7 @@ use HereYouGo\UI\Translation;
  *
  * @package HereYouGo\Form
  *
+ * @property-read string $action
  * @property string $resource
  * @property string $goto
  * @property string $label
@@ -60,10 +61,7 @@ abstract class Control extends Fragment {
      * @return string
      */
     public function getHtml() {
-        $class = explode('\\', static::class);
-        $action = strtolower(array_pop($class));
-
-        $attributes = ['data-action' => $action];
+        $attributes = ['data-action' => $this->action];
 
         foreach(['resource', 'goto', 'prompt'] as $k)
             if($this->$k)
@@ -74,7 +72,7 @@ abstract class Control extends Fragment {
 
         $this->addAttributes($attributes, false);
 
-        $label = $this->label ? $this->label : Locale::translate('form.action.'.$action);
+        $label = $this->label ? $this->label : Locale::translate('form.action.'.$this->action);
 
         return $this->wrap((string)$label);
     }
@@ -91,6 +89,9 @@ abstract class Control extends Fragment {
     public function __get($name) {
         if(in_array($name, ['resource', 'goto', 'label', 'prompt', 'disabled']))
             return $this->$name;
+
+        if($name === 'action')
+            return strtolower(substr(static::class, strrpos(static::class, '\\')));
 
         throw new UnknownProperty($this, $name);
     }

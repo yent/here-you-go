@@ -15,10 +15,9 @@ use HereYouGo\HTTP\Request;
 include dirname(__FILE__).'/../init.php';
 
 try {
-    $sp = Auth::getSP();
-    if($sp) {
-        Router::addRoute(['get', 'post'], '/log-in', null, "$sp::doLogin");
-        Router::addRoute(['get', 'post'], '/log-out', null, "$sp::doLogout");
+    if(Auth::getBackends()) {
+        foreach(['/log-in' => 'logIn', '/log-out' => 'logOut', '/register' => 'register'] as $path => $call)
+            Router::addRoute(['get', 'post'], $path, null, 'Auth::'.$call);
     }
 
     // Catch all

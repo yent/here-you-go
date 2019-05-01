@@ -7,17 +7,17 @@ namespace HereYouGo\Auth\Exception;
 use HereYouGo\Exception\Detailed;
 
 /**
- * Class UnknownSP
+ * Class UnknownBackend
  *
- * @package HereYouGo\Auth
+ * @package HereYouGo\Backend
  */
-class UnknownSP extends Detailed {
+class UnknownBackend extends Detailed {
     /**
      * UnknownSP constructor.
      *
      * @param string $type
      */
     public function __construct($type) {
-        parent::__construct('unknown_sp_type', ['type' => $type]);
+        parent::__construct('unknown_backend_type', ['type' => $type]);
     }
 }
